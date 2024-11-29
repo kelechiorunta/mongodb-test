@@ -22,7 +22,7 @@ function App() {
     }
     getData();
    
-  },[api]);
+  },[api, apidomain]);
 
   const handleChange = (e) => {
     setDetails(e.target.value)
@@ -62,7 +62,8 @@ function App() {
         </a>
 
         <video controls width="640">
-          <source src="http://localhost:3500/stream/videos/6748f07cad69751cbb6d4a0c" type="video/mp4" />
+          <source src={`${apidomain}/stream/videos/6749138130135f91793e6950`} type="video/mp4" />
+          Your browser does not support the video tag.
         </video>
 
         <form onSubmit={handleSave}>

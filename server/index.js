@@ -21,7 +21,7 @@ const app = express();
 
 connectDB(process.env.MONGO_URI);
 
-const allowedOrigins = ['http://localhost:3500', 'https://node-test-bice.vercel.app/','http://localhost:3001', ]
+const allowedOrigins = ['*', 'http://localhost:3500', 'https://node-test-bice.vercel.app/','http://localhost:3001', ]
 let corsSetup = {
     origin: (origin, callback) => {
         if (allowedOrigins.indexOf(origin) !== -1 || !origin){

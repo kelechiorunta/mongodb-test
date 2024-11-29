@@ -4,40 +4,65 @@ import Video from '../models/Videos.js';
 // import upload from '../upload.js';
 import { gfs } from '../db.js'; // Import GridFS configuration
 import { GridFSBucket } from 'mongodb';
-import { gridfsBucket } from '../db.js';
+// import { gridfsBucket } from '../db.js';
 import mongoose from 'mongoose';
 import { pipeline } from 'stream';
 import { promisify } from 'util';
 import multer from 'multer';
+import { Readable } from 'stream'; // Ensure Readable is imported
 
 const router = express.Router();
-
-// Configure Multer to handle fields
-const storage = multer.memoryStorage(); // Use memory storage to manage files in memory
-const upload = multer({ storage });
-
 const pipelineAsync = promisify(pipeline);
 
-router.post('/upload', upload.single('video'), async (req, res) => {
+// Configure Multer to handle file uploads in memory
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
+
+
+// Upload route
+router.post('/upload', upload.single('video'), async (req, res) => {
+  try {
+
+        // GridFSBucket initialization
+    let gridfsBucket;
+    if (mongoose.connection.db) {
+    gridfsBucket = new GridFSBucket(mongoose.connection.db, {
+        bucketName: 'videos',
+    });
+    }
+
+    // Helper function to create a readable stream from a buffer
+    const bufferToStream = (buffer) => {
+    const readable = new Readable();
+    readable.push(buffer);
+    readable.push(null); // No more data
+    return readable;
+    };
     // Validate request
     if (!req.file) {
-        return res.status(400).json({ error: 'No video file uploaded' });
-      }
+      return res.status(400).json({ error: 'No video file uploaded' });
+    }
 
-  const bucket = new GridFSBucket(mongoose.connection.db, {
-    bucketName: 'videos',
-  });
- 
-  const uploadStream = bucket.openUploadStream(req.body.filename);
-  try {
-    console.log(req.body)
-    await pipelineAsync(req, uploadStream);
-    const video = new Video({
-        videoId: uploadStream.id, // GridFS file ID
-      });
-      await video.save(); 
-    res.status(201).json({ message: 'Upload successful', fileId: uploadStream.id });
+    // Ensure GridFSBucket is initialized
+    if (!gridfsBucket) {
+      return res.status(500).json({ error: 'GridFSBucket not initialized' });
+    }
+
+    // Create an upload stream with GridFSBucket
+    const uploadStream = gridfsBucket.openUploadStream(req.file.originalname, {
+      contentType: req.file.mimetype, // Set content type for the file
+    });
+
+    // Convert the buffer into a readable stream and pipe it to GridFS
+    const readableStream = bufferToStream(req.file.buffer);
+    await pipelineAsync(readableStream, uploadStream);
+
+    // Return success response with the file ID
+    res.status(201).json({
+      message: 'Upload successful',
+      fileId: uploadStream.id,
+    });
   } catch (err) {
     console.error('Upload failed:', err);
     res.status(500).json({ error: 'Upload failed' });
@@ -121,52 +146,62 @@ router.post('/upload', upload.single('video'), async (req, res) => {
 //     }
 //   });
   
+// Use gfs and gridfsBucket for GridFS operations
+// const gridfsBucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'videos' });
+
 router.get('/videos/:id', async (req, res) => {
     try {
       const videoId = req.params.id;
   
-      // Find the file in GridFS
-      gfs.files.findOne({ _id: new mongoose.Types.ObjectId(videoId) }, (err, file) => {
-        if (!file || file.length === 0) {
-          return res.status(404).json({ error: 'No file found' });
-        }
+      if (!req.headers.range) {
+        return res.status(416).send('Requires Range header');
+      }
   
-        if (file.contentType.startsWith('video/')) {
-          const range = req.headers.range;
+      const range = req.headers.range; // e.g., "bytes=0-"
+      const start = Number(range.replace(/\D/g, ''));
   
-          if (!range) {
-            return res.status(416).send('Requires Range header');
-          }
-  
-          const videoSize = file.length;
-          const CHUNK_SIZE = 10 ** 6; // 1MB
-          const start = Number(range.replace(/\D/g, ''));
-          const end = Math.min(start + CHUNK_SIZE, videoSize - 1);
-          const contentLength = end - start + 1;
-  
-          res.set({
-            // 'Access-Control-Allow-Origin': '*', // Allow all origins
-            'Content-Range': `bytes ${start}-${end}/${videoSize}`,
-            'Accept-Ranges': 'bytes',
-            'Content-Length': contentLength,
-            'Content-Type': file.contentType,
-          });
-  
-          const readStream = gridfsBucket.openDownloadStream(file._id, {
-            start,
-            end: end + 1,
-          });
-  
-          readStream.pipe(res);
-        } else {
-          res.status(400).json({ error: 'File is not a video' });
-        }
+      // Initialize GridFSBucket
+      const gridfsBucket = new GridFSBucket(mongoose.connection.db, {
+        bucketName: 'videos',
       });
+  
+      // Fetch the file from GridFS
+      const file = await gridfsBucket.find({ _id: new mongoose.Types.ObjectId(videoId) }).next();
+      if (!file) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+  
+      if (!file.contentType.startsWith('video/')) {
+        return res.status(400).json({ error: 'File is not a video' });
+      }
+  
+      // Calculate video size and range
+      const videoSize = file.length;
+      const CHUNK_SIZE = 10 ** 6; // 1MB
+      const end = Math.min(start + CHUNK_SIZE, videoSize - 1);
+      const contentLength = end - start + 1;
+  
+      // Set response headers
+      res.status(206).set({
+        'Content-Range': `bytes ${start}-${end}/${videoSize}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': contentLength,
+        'Content-Type': file.contentType,
+      });
+  
+      // Stream the video
+      const readStream = gridfsBucket.openDownloadStream(file._id, {
+        start,
+        end: end + 1, // `end` is inclusive, so we need to go one byte beyond
+      });
+  
+      readStream.pipe(res);
     } catch (err) {
       console.error(err);
       res.status(500).json({ error: 'Server error' });
     }
   });
+  
   
 
 export default router; 
