@@ -79,7 +79,7 @@ const UploadForm = () => {
             type="file"
             onChange={handleFileChange}
             className="w-full px-3 py-2 border rounded"
-            accept="video/*"
+            // accept="video/*"
             required
           />
         </div>

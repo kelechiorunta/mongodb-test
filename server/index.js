@@ -4,8 +4,10 @@ import process from 'process';
 import { spawn, exec } from 'child_process'
 import { open, readFile, createReadStream , createWriteStream } from 'fs'
 import { pipeline, finished } from 'stream/promises'
+import { Readable } from 'stream'
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import { promisify } from 'util';
 import cors from 'cors';
 import express from 'express'
 import { writeFile } from 'fs/promises';
@@ -13,11 +15,15 @@ import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import { connectDB, gridfsBucket } from './db.js';
 import videosRoutes from './routes/videos.js';
+import multer from 'multer';
 import dotenv from 'dotenv';
 
 dotenv.config();
 
 const app = express();
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
+const piplelineAsync = promisify(pipeline);
 
 connectDB(process.env.MONGO_URI);
 
@@ -118,6 +124,34 @@ app.post('/saveApi', async(req, res) => {
     }
     catch(err) {
         return res.status(500).json({error: "Server Error. Unable to connect.", err});
+    }
+})
+
+app.post('/file', upload.single('video'), async(req, res) => {
+    // const { file } = req.file;
+    
+    const bufferstream = (buffer) => {
+        const readable = new Readable();
+            readable.push(buffer);
+            readable.push(null);
+            readable.on('end', () => {
+                console.log("Stream finished successfully.")
+            })
+        return readable
+    }
+
+    try{
+        const readablestream = bufferstream(req.file.buffer)
+        const writeablestream = createWriteStream('kusman.jpg');
+        await piplelineAsync(readablestream, writeablestream);
+        res.status(201).json({
+            message: 'Upload successful',
+            // fileId: uploadStream.id,
+          });
+    }
+    catch(err){
+        console.error('Failed to stream', err);
+        res.status(500).json({ error: 'Upload failed' });
     }
 })
 

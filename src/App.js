@@ -62,9 +62,11 @@ function App() {
         </a>
 
         <video controls width="640">
-          <source src={`${apidomain}/stream/videos/6749138130135f91793e6950`} type="video/mp4" />
+          <source src={`${apidomain}/stream/videos`} type="video/mp4" />
           Your browser does not support the video tag.
         </video>
+
+        {/* <img src='kusman.jpg' alt='' width={100} height={100} /> */}
 
         <form onSubmit={handleSave}>
             <input type='text' name="details" value={details} onChange={handleChange} />

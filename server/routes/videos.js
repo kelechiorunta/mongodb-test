@@ -54,15 +54,35 @@ router.post('/upload', upload.single('video'), async (req, res) => {
       contentType: req.file.mimetype, // Set content type for the file
     });
 
-    // Convert the buffer into a readable stream and pipe it to GridFS
-    const readableStream = bufferToStream(req.file.buffer);
-    await pipelineAsync(readableStream, uploadStream);
+    // const kelechi = await User.findOne({email: 'kelechiorunta1@gmail.com'})
+    const kelechi = await User.findOne({email: 'kelechiorunta1@gmail.com'});
+    if (!kelechi) {
+        return res.status(400).json({error: "No such user"});
+    }
 
-    // Return success response with the file ID
-    res.status(201).json({
-      message: 'Upload successful',
-      fileId: uploadStream.id,
-    });
+    const existingVideo = await gridfsBucket.find({_id: kelechi.videoId}).next();
+
+    if (existingVideo) {
+        console.log(existingVideo)
+        // res.status(400).json({error: "File already exists"})
+        await gridfsBucket.delete(new mongoose.Types.ObjectId(kelechi.videoId))
+    }
+    // else{
+            // Convert the buffer into a readable stream and pipe it to GridFS
+        const readableStream = bufferToStream(req.file.buffer);
+        await pipelineAsync(readableStream, uploadStream);
+
+
+        //Find user called kelechi
+        kelechi.videoId = uploadStream.id;
+        await kelechi.save();
+        // Return success response with the file ID
+        res.status(201).json({
+        message: 'Upload successful',
+        fileId: kelechi.videoId//uploadStream.id,
+        });
+    // }
+    
   } catch (err) {
     console.error('Upload failed:', err);
     res.status(500).json({ error: 'Upload failed' });
@@ -149,9 +169,9 @@ router.post('/upload', upload.single('video'), async (req, res) => {
 // Use gfs and gridfsBucket for GridFS operations
 // const gridfsBucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'videos' });
 
-router.get('/videos/:id', async (req, res) => {
+router.get('/videos', async (req, res) => {
     try {
-      const videoId = req.params.id;
+    //   const videoId = req.params.id;
   
       if (!req.headers.range) {
         return res.status(416).send('Requires Range header');
@@ -164,9 +184,15 @@ router.get('/videos/:id', async (req, res) => {
       const gridfsBucket = new GridFSBucket(mongoose.connection.db, {
         bucketName: 'videos',
       });
-  
+      
+      const kelechi = await User.findOne({email: 'kelechiorunta1@gmail.com'})
+
+      if (!kelechi) {
+        return res.status(400).json({message: "User does not exist"})
+      }
+      
       // Fetch the file from GridFS
-      const file = await gridfsBucket.find({ _id: new mongoose.Types.ObjectId(videoId) }).next();
+      const file = await gridfsBucket.find({ _id: kelechi.videoId }).next();
       if (!file) {
         return res.status(404).json({ error: 'File not found' });
       }
