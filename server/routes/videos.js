@@ -10,6 +10,7 @@ import { pipeline } from 'stream';
 import { promisify } from 'util';
 import multer from 'multer';
 import { Readable } from 'stream'; // Ensure Readable is imported
+import { authenticateToken } from '../middleware.js';
 
 const router = express.Router();
 const pipelineAsync = promisify(pipeline);
@@ -18,12 +19,9 @@ const pipelineAsync = promisify(pipeline);
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-
-
 // Upload route
-router.post('/upload', upload.single('video'), async (req, res) => {
+router.post('/upload', upload.single('video'), authenticateToken, async (req, res) => {
   try {
-
         // GridFSBucket initialization
     let gridfsBucket;
     if (mongoose.connection.db) {
@@ -31,7 +29,6 @@ router.post('/upload', upload.single('video'), async (req, res) => {
         bucketName: 'videos',
     });
     }
-
     // Helper function to create a readable stream from a buffer
     const bufferToStream = (buffer) => {
     const readable = new Readable();
@@ -54,18 +51,18 @@ router.post('/upload', upload.single('video'), async (req, res) => {
       contentType: req.file.mimetype, // Set content type for the file
     });
 
-    // const kelechi = await User.findOne({email: 'kelechiorunta1@gmail.com'})
-    const kelechi = await User.findOne({email: 'kelechiorunta1@gmail.com'});
-    if (!kelechi) {
+    // Current User
+    const currentUser = await User.findOne({email: req.user?.email});
+    if (!currentUser) {
         return res.status(400).json({error: "No such user"});
     }
 
-    const existingVideo = await gridfsBucket.find({_id: kelechi.videoId}).next();
+    const existingVideo = await gridfsBucket.find({_id: currentUser.videoId}).next();
 
     if (existingVideo) {
         console.log(existingVideo)
         // res.status(400).json({error: "File already exists"})
-        await gridfsBucket.delete(new mongoose.Types.ObjectId(kelechi.videoId))
+        await gridfsBucket.delete(new mongoose.Types.ObjectId(currentUser.videoId))
     }
     // else{
             // Convert the buffer into a readable stream and pipe it to GridFS
@@ -73,13 +70,13 @@ router.post('/upload', upload.single('video'), async (req, res) => {
         await pipelineAsync(readableStream, uploadStream);
 
 
-        //Find user called kelechi
-        kelechi.videoId = uploadStream.id;
-        await kelechi.save();
+        //Find currentUser and save video for current User
+        currentUser.videoId = uploadStream.id;
+        await currentUser.save();
         // Return success response with the file ID
         res.status(201).json({
         message: 'Upload successful',
-        fileId: kelechi.videoId//uploadStream.id,
+        fileId: currentUser.videoId//uploadStream.id,
         });
     // }
     
@@ -169,9 +166,10 @@ router.post('/upload', upload.single('video'), async (req, res) => {
 // Use gfs and gridfsBucket for GridFS operations
 // const gridfsBucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'videos' });
 
-router.get('/videos', async (req, res) => {
+router.get('/videos', authenticateToken, async (req, res) => {
     try {
     //   const videoId = req.params.id;
+    console.log("WELCOME", req.user)
   
       if (!req.headers.range) {
         return res.status(416).send('Requires Range header');
@@ -185,14 +183,14 @@ router.get('/videos', async (req, res) => {
         bucketName: 'videos',
       });
       
-      const kelechi = await User.findOne({email: 'kelechiorunta1@gmail.com'})
+      const currentUser = await User.findOne({email: req.user?.email})
 
-      if (!kelechi) {
+      if (!currentUser) {
         return res.status(400).json({message: "User does not exist"})
       }
       
       // Fetch the file from GridFS
-      const file = await gridfsBucket.find({ _id: kelechi.videoId }).next();
+      const file = await gridfsBucket.find({ _id: currentUser.videoId }).next();
       if (!file) {
         return res.status(404).json({ error: 'File not found' });
       }

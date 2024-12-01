@@ -15,6 +15,7 @@ import bodyParser from 'body-parser';
 import cookieParser from 'cookie-parser';
 import { connectDB, gridfsBucket } from './db.js';
 import videosRoutes from './routes/videos.js';
+import authRouter from './routes/auth.js';
 import multer from 'multer';
 import dotenv from 'dotenv';
 
@@ -27,7 +28,7 @@ const piplelineAsync = promisify(pipeline);
 
 connectDB(process.env.MONGO_URI);
 
-const allowedOrigins = ['*', 'http://localhost:3500', 'https://node-test-bice.vercel.app/','http://localhost:3001', ]
+const allowedOrigins = ['*', 'http://localhost:3500', 'https://node-test-bice.vercel.app/','http://localhost:3001', 'http://localhost:3000' ]
 let corsSetup = {
     origin: (origin, callback) => {
         if (allowedOrigins.indexOf(origin) !== -1 || !origin){
@@ -50,6 +51,7 @@ app.use(cookieParser());
 app.enable('trust proxy');
 
 app.use('/stream', videosRoutes);
+app.use('/auth', authRouter);
 
 const main = async() => {
     
