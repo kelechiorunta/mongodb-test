@@ -8,6 +8,7 @@ const userSchema = new mongoose.Schema({
     createdAt: { type: Date, default: Date.now },
     picture: { type: String, required: false, default:''},
     videoId: { type: mongoose.Schema.Types.ObjectId, ref: 'videos' }, // Reference to GridFS file
+    pictureId: { type: mongoose.Schema.Types.ObjectId, ref: 'pictures' }, // Reference to GridFS file
     otp: {
         type: String,
         default: 'otp'

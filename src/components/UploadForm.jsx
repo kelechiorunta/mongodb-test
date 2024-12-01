@@ -1,7 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useTransition } from 'react';
 import axios from 'axios';
+import { FaSpinner, Spinner } from 'react-icons/fa'
 
 const UploadForm = () => {
+  
+  const [loading, setLoading] = useState(null);
   const [formData, setFormData] = useState({
     username: '',
     email: '',
@@ -20,30 +23,35 @@ const UploadForm = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!file) {
-      return setMessage('Please select a video file to upload.');
-    }
+    setLoading(true)
 
-    const form = new FormData();
-    form.append('username', formData.username);
-    form.append('email', formData.email);
-    form.append('video', file);
-
-    try {
-        const data = {username: formData.username, email: formData.email}
-        console.log(file)
-      const res = await axios.post('http://localhost:3500/stream/upload', form, {
-        withCredentials: true,
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        //   'Content-Type': 'application/json',
-        },
-      });
-      setMessage(res.data.message || 'Video uploaded successfully!');
-    } catch (err) {
-      setMessage('Error uploading video. Please try again.');
-      console.error(err);
-    }
+        if (!file) {
+            return setMessage('Please select a video file to upload.');
+          }
+      
+          const form = new FormData();
+          form.append('username', formData.username);
+          form.append('email', formData.email);
+          form.append('picture', file);
+      
+          try {
+            const data = {username: formData.username, email: formData.email}
+            console.log(file)
+            const res = await axios.post('http://localhost:3500/stream/uploadPic', form, {
+              withCredentials: true,
+              headers: {
+                'Content-Type': 'multipart/form-data',
+              },
+            });
+            setMessage(res.data.message || 'Picture uploaded successfully!');
+          } catch (err) {
+            setMessage('Error uploading video. Please try again.');
+            console.error(err);
+          }
+          finally{
+            setLoading(false)
+          }
+    
   };
 
   return (
@@ -87,7 +95,7 @@ const UploadForm = () => {
           type="submit"
           className="px-4 py-2 bg-blue-600 text-white font-bold rounded hover:bg-blue-700"
         >
-          Upload
+          {loading? <FaSpinner className='m-auto animate-spin' /> : 'Upload' }
         </button>
       </form>
     </div>
