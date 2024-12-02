@@ -8,6 +8,7 @@ import { Readable } from 'stream'
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { promisify } from 'util';
+import { GridFSBucket } from 'mongodb'
 import cors from 'cors';
 import express from 'express'
 import { writeFile } from 'fs/promises';
@@ -18,6 +19,7 @@ import videosRoutes from './routes/videos.js';
 import authRouter from './routes/auth.js';
 import multer from 'multer';
 import dotenv from 'dotenv';
+import mongoose from 'mongoose';
 
 dotenv.config();
 
@@ -129,9 +131,15 @@ app.post('/saveApi', async(req, res) => {
     }
 })
 
-app.post('/file', upload.single('video'), async(req, res) => {
+app.post('/file', upload.single('file'), async(req, res) => {
     // const { file } = req.file;
-    
+    let gfsBucket;
+    if (mongoose.connection.db){
+        gfsBucket = new GridFSBucket(mongoose.connection.db, {
+            bucketName: 'file'
+        });
+    }
+
     const bufferstream = (buffer) => {
         const readable = new Readable();
             readable.push(buffer);
@@ -144,11 +152,14 @@ app.post('/file', upload.single('video'), async(req, res) => {
 
     try{
         const readablestream = bufferstream(req.file.buffer)
-        const writeablestream = createWriteStream('kusman.jpg');
+        // Create an upload stream with GridFSBucket
+        const writeablestream = gfsBucket.openUploadStream(req.file.originalname, {
+            contentType: req.file.mimetype, // Set content type for the file
+          });
         await piplelineAsync(readablestream, writeablestream);
         res.status(201).json({
             message: 'Upload successful',
-            // fileId: uploadStream.id,
+            fileId: writeablestream.id,
           });
     }
     catch(err){

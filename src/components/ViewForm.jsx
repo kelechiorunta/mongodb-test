@@ -48,7 +48,7 @@ export default function ViewForm() {
     <>
     <header className="App-header">
 
-    <video className='rounded-md shadow-md shadow-white z-20' controls width="640">
+    <video className='rounded-md shadow-md z-20' controls width="640">
       <source src={`${apidomain}/stream/videos`} type="video/mp4" />
       Your browser does not support the video tag.
     </video>

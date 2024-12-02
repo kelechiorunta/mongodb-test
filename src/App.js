@@ -6,6 +6,7 @@ import { Route, Routes } from 'react-router-dom';
 import UploadForm from './components/UploadForm.jsx';
 import ViewForm from './components/ViewForm.jsx';
 import Login from './components/Login.jsx';
+import About from './components/About.jsx';
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
         <Route path='/login' element={<Login />} />
         <Route element={<ProtectedRoute />} >
           <Route path='/' element={<ViewForm/>} />
+          <Route path='/about' element={<About />} />
           <Route path="/upload" element={<UploadForm/>} /> 
         </Route>
       </Routes> 
