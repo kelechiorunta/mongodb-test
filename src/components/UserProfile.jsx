@@ -22,7 +22,7 @@ const UserProfile = () => {
     };
 
     fetchImageUrl();
-  }, []);
+  }, [imageUrl]);
 
   return (
     <div className=''>

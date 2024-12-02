@@ -3,7 +3,7 @@ import User from '../models/User.js';
 import Video from '../models/Videos.js';
 // import upload from '../upload.js';
 import { gfs } from '../db.js'; // Import GridFS configuration
-import { GridFSBucket } from 'mongodb';
+import { GridFSBucket, ObjectId } from 'mongodb';
 // import { gridfsBucket } from '../db.js';
 import mongoose from 'mongoose';
 import { pipeline } from 'stream';
@@ -205,7 +205,58 @@ router.get('/image', authenticateToken, async(req, res) => {
           res.status(500).json({ error: 'Server error' });
         }
       });
-      
+
+        // Assuming authenticateToken middleware is correctly implemented
+        router.get('/getFile', authenticateToken, async (req, res) => {
+            try {
+            // Initialize GridFSBucket
+            const gfsBucket = new GridFSBucket(mongoose.connection.db, {
+                bucketName: 'file',
+            });
+        
+            // Find the current user
+            const currentUser = await User.findOne({ email: req.user?.email });
+        
+            if (!currentUser) {
+                return res.status(404).json({ message: "User does not exist" });
+            }
+        
+            // Replace this hardcoded ObjectId with dynamic data
+            const fileId = '674e0a00a9dd8fa0415adb13'//'674ddbbd74fcc151443f4eef';
+        
+            // Validate ObjectId format
+            // if (!ObjectId.isValid(fileId)) {
+            //     return res.status(400).json({ message: "Invalid file ID" });
+            // }
+        
+            // Fetch the file from GridFS
+            const file = await gfsBucket.find({ _id: new ObjectId(fileId) }).next();
+            if (!file) {
+                return res.status(404).json({ message: "File not found" });
+            }
+        
+            console.log("File found:", file);
+        
+            // Set appropriate headers
+            res.set({
+                'Content-Type': file.contentType || 'application/octet-stream',
+                'Content-Length': file.length,
+            });
+        
+            // Stream the file to the client
+            const readableStream = gfsBucket.openDownloadStream(new ObjectId(fileId));
+            readableStream.on('error', (err) => {
+                console.error('Stream error:', err);
+                return res.status(500).json({ error: "Error while streaming the file" });
+            });
+        
+            readableStream.pipe(res);
+            } catch (err) {
+            console.error('Error:', err);
+            return res.status(500).json({ error: "Failed to stream the file" });
+            }
+        });
+
         router.post('/uploadPic', upload.single('picture'), authenticateToken, async (req, res) => {
             try {
                   // GridFSBucket initialization

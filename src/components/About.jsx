@@ -36,7 +36,7 @@ export default function About() {
               try {
                 const data = {username: formData.username, email: formData.email}
                 console.log(file)
-                const res = await axios.post('http://localhost:3500/file', form, {
+                const res = await axios.post(`${process.env.REACT_APP_BASE_URL}/file`, form, {
                   withCredentials: true,
                   headers: {
                     'Content-Type': 'multipart/form-data',
@@ -54,6 +54,8 @@ export default function About() {
       };
   return (
     <div>
+        <img className='rounded-md absolute -z-10 top-[0%] left-[0%] w-full max-h-[100%]'
+        src={`${process.env.REACT_APP_BASE_URL}/stream/getFile`} alt="" width={60} height={30} />
         <h1>About</h1>
         <div className="p-6 max-w-md mx-auto bg-white rounded shadow-md mt-20">
         <h2 className="text-2xl font-bold mb-4">Upload File</h2>

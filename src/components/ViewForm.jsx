@@ -6,12 +6,12 @@ export default function ViewForm() {
  
   const [api, setApi] = useState(null);
   const [details, setDetails] = useState('');
-  const apidomain = 'http://localhost:3500'//process.env.NODE_ENV=='production'? 'https://node-test-bice.vercel.app' : 'http://localhost:3500'
+  //const apidomain = 'http://localhost:3500'//process.env.NODE_ENV=='production'? 'https://node-test-bice.vercel.app' : 'http://localhost:3500'
 
   useEffect(() => {
     const getData = async() => {
       try{
-        const res = await axios.get(`${apidomain}/getApi`, { withCredentials: true });
+        const res = await axios.get(`${process.env.REACT_APP_BASE_URL}/getApi`, { withCredentials: true });
         console.log(res.data?.streamedData);
         setApi(res.data?.streamedData)
       }
@@ -21,7 +21,7 @@ export default function ViewForm() {
     }
     getData();
    
-  },[api, apidomain]);
+  },[]);
 
   const handleChange = (e) => {
     setDetails(e.target.value)
@@ -31,7 +31,7 @@ export default function ViewForm() {
     e.preventDefault();
     try{
       const data = {details: details}
-      const res = await axios.post(`${apidomain}/saveApi`, data,
+      const res = await axios.post(`$${process.env.REACT_APP_BASE_URL}/saveApi`, data,
          {withCredentials: true,
           headers:{
             'Content-Type' : 'application/json'
@@ -49,7 +49,7 @@ export default function ViewForm() {
     <header className="App-header">
 
     <video className='rounded-md shadow-md z-20' controls width="640">
-      <source src={`${apidomain}/stream/videos`} type="video/mp4" />
+      <source src={`${process.env.REACT_APP_BASE_URL}/stream/videos`} type="video/mp4" />
       Your browser does not support the video tag.
     </video>
 

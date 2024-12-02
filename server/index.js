@@ -20,6 +20,7 @@ import authRouter from './routes/auth.js';
 import multer from 'multer';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import { authenticateToken } from './middleware.js';
 
 dotenv.config();
 
@@ -30,7 +31,7 @@ const piplelineAsync = promisify(pipeline);
 
 connectDB(process.env.MONGO_URI);
 
-const allowedOrigins = ['*', 'http://localhost:3500', 'https://node-test-bice.vercel.app/','http://localhost:3001', 'http://localhost:3000' ]
+const allowedOrigins = ['https://node-test-bice.vercel.app', '*', 'http://localhost:3500', 'http://localhost:3001', 'http://localhost:3000' ]
 let corsSetup = {
     origin: (origin, callback) => {
         if (allowedOrigins.indexOf(origin) !== -1 || !origin){
@@ -90,10 +91,10 @@ const run = async () => {
 
 run();
 
-// app.get('*', (req, res) => {
-//     const indexFile = path.resolve('build', 'index.html');
-//     res.sendFile(indexFile);
-// })
+app.get('*', (req, res) => {
+    const indexFile = path.resolve('build', 'index.html');
+    res.sendFile(indexFile);
+})
 
 app.get('/', (req, res) => {
     const indexFile = path.resolve('build', 'index.html');
