@@ -1,11 +1,13 @@
 import express from 'express';
 import { login, verifyToken, logout } from "../controllers/authentication.js";
 import { authenticateToken } from '../middleware.js';
+import { connectDB } from '../db.js';
 
 const authRouter = express.Router();
 
 authRouter.get('*', authenticateToken, (req, res, next) => {
-    console.log(req.user?.videoId)
+    // console.log(req.user?.username)
+    
     next();
 })
 

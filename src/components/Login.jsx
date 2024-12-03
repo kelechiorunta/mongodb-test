@@ -29,11 +29,13 @@ export default function Login() {
              console.log(res?.data?.user);
              localStorage.setItem('userData', JSON.stringify(res?.data?.user))
              navigate('/', {state: JSON.parse(localStorage.getItem('userData'))}, { replace: true });
-             window.history.pushState({ noBack: true }, '', '/');
+             window.location.href = '/'
+            //  window.history.pushState({ noBack: true }, '', '/');
             // window.history.go(-(window.history.length - 1));
     }
     catch(err){
         console.error(err?.message);
+        localStorage.clear();
     }
     // Add login logic here
   };

@@ -7,6 +7,7 @@ import { pipeline, finished } from 'stream/promises'
 import { Readable } from 'stream'
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+import errorHandler from 'errorhandler'
 import { promisify } from 'util';
 import { GridFSBucket, ObjectId } from 'mongodb'
 import cors from 'cors';
@@ -22,6 +23,8 @@ import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { authenticateToken } from './middleware.js';
 import User from './models/User.js';
+import jwt from 'jsonwebtoken'
+
 
 dotenv.config();
 
@@ -54,8 +57,25 @@ app.use(cookieParser());
 
 app.enable('trust proxy');
 
-app.use('/stream', videosRoutes);
+// app.use('*', (req, res, next) => {
+    
+//     // if (req.user) {
+//         jwt.verify(req.cookies.kelechi, process.env.JWT_SECRET, (err, decoded) => {
+//             if (err) {
+//                 return res.status(400).json({error: "Expired or Invalid Token"});
+//             }
+//             const token = decoded.user
+//             req.user = token;
+            
+//             next();
+//         })
+//     // next();
+//     //  }
+    
+// })
+
 app.use('/auth', authRouter);
+app.use('/stream', videosRoutes);
 
 const main = async() => {
     
@@ -92,10 +112,10 @@ const run = async () => {
 
 run();
 
-app.get('*', (req, res) => {
-    const indexFile = path.resolve('build', 'index.html');
-    res.sendFile(indexFile);
-})
+// app.get('*', (req, res) => {
+//     const indexFile = path.resolve('build', 'index.html');
+//     res.sendFile(indexFile);
+// })
 
 app.get('/', (req, res) => {
     const indexFile = path.resolve('build', 'index.html');
@@ -175,7 +195,7 @@ app.post('/file', upload.single('file'), authenticateToken, async(req, res) => {
 
         currentUser.fileId = writeablestream.id;
         await currentUser.save();
-        
+
         res.status(201).json({
             message: 'Upload successful',
             id: writeablestream.id,
@@ -186,6 +206,8 @@ app.post('/file', upload.single('file'), authenticateToken, async(req, res) => {
         res.status(500).json({ error: 'Upload failed' });
     }
 })
+
+
 
 const server = http.createServer(app);
 
@@ -203,7 +225,20 @@ const server = http.createServer(app);
 //         console.error(err)
 //     }
 // })
-const mongoURI = process.env.MONGO_URI
+
+// Use the error handler middleware for development
+if (process.env.NODE_ENV === 'development') {
+    app.use(errorHandler({ log: true })); // Logs the errors to the console
+}
+
+// Production error handling
+if (process.env.NODE_ENV === 'production') {
+    // Use a basic custom error handler or log errors in production
+    app.use((err, req, res, next) => {
+        console.error(err.stack);
+        res.status(500).send('Something went wrong!');
+    });
+}
 
 const port = process.env.PORT || 3500
 

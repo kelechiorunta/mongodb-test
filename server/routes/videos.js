@@ -9,6 +9,7 @@ import mongoose from 'mongoose';
 import { pipeline } from 'stream';
 import { promisify } from 'util';
 import multer from 'multer';
+import jwt from 'jsonwebtoken';
 import { Readable } from 'stream'; // Ensure Readable is imported
 import { authenticateToken } from '../middleware.js';
 
@@ -18,6 +19,63 @@ const pipelineAsync = promisify(pipeline);
 // Configure Multer to handle file uploads in memory
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
+
+router.get('/videos/:email', authenticateToken, async (req, res) => {
+    try {
+      const gridfsBucket = new GridFSBucket(mongoose.connection.db, {
+        bucketName: 'videos',
+      });
+
+      const currentEmail = req.params.email
+  
+      const range = req.headers.range;
+      if (!range) {
+        return res.status(416).send('Range header is required');
+      }
+  
+      // Retrieve the user and video file
+      const currentUser = await User.findOne({ email: currentEmail });
+      if (!currentUser) {
+        return res.status(400).json({ message: 'User does not exist' });
+      }
+  
+      const file = await gridfsBucket.find({ _id: currentUser.videoId }).next();
+      if (!file) {
+        return res.status(404).json({ error: 'File not found' });
+      }
+  
+      // Validate the Range header
+      const start = Number(range.replace(/\D/g, ''));
+      if (isNaN(start) || start >= file.length) {
+        return res.status(416).set({
+          'Content-Range': `bytes */${file.length}`,
+        }).send('Requested range is not satisfiable');
+      }
+  
+      const CHUNK_SIZE = 10 ** 6; // 1MB
+      const end = Math.min(start + CHUNK_SIZE, file.length - 1);
+      const contentLength = end - start + 1;
+  
+      // Set response headers for partial content
+      res.status(206).set({
+        'Content-Range': `bytes ${start}-${end}/${file.length}`,
+        'Accept-Ranges': 'bytes',
+        'Content-Length': contentLength,
+        'Content-Type': file.contentType,
+      });
+  
+      // Stream the video chunk
+      const readStream = gridfsBucket.openDownloadStream(file._id, {
+        start,
+        end: end + 1, // Include the last byte
+      });
+  
+      readStream.pipe(res);
+    } catch (err) {
+      console.error('Error fetching video:', err.message);
+      res.status(500).json({ error: 'Internal server error' });
+    }
+  });  
 
 // Upload route
 router.post('/upload', upload.single('video'), authenticateToken, async (req, res) => {
@@ -86,66 +144,6 @@ router.post('/upload', upload.single('video'), authenticateToken, async (req, re
   }
 });
 
-
-router.get('/videos', authenticateToken, async (req, res) => {
-    try {
-    //   const videoId = req.params.id;
-    // console.log("WELCOME", req.user)
-  
-      if (!req.headers.range) {
-        return res.status(416).send('Requires Range header');
-      }
-  
-      const range = req.headers.range; // e.g., "bytes=0-"
-      const start = Number(range.replace(/\D/g, ''));
-  
-      // Initialize GridFSBucket
-      const gridfsBucket = new GridFSBucket(mongoose.connection.db, {
-        bucketName: 'videos',
-      });
-      
-      const currentUser = await User.findOne({email: req.user?.email})
-
-      if (!currentUser) {
-        return res.status(400).json({message: "User does not exist"})
-      }
-      
-      // Fetch the file from GridFS
-      const file = await gridfsBucket.find({ _id: currentUser.videoId }).next();
-      if (!file) {
-        return res.status(404).json({ error: 'File not found' });
-      }
-  
-      if (!file.contentType.startsWith('video/')) {
-        return res.status(400).json({ error: 'File is not a video' });
-      }
-  
-      // Calculate video size and range
-      const videoSize = file.length;
-      const CHUNK_SIZE = 10 ** 6; // 1MB
-      const end = Math.min(start + CHUNK_SIZE, videoSize - 1);
-      const contentLength = end - start + 1;
-  
-      // Set response headers
-      res.status(206).set({
-        'Content-Range': `bytes ${start}-${end}/${videoSize}`,
-        'Accept-Ranges': 'bytes',
-        'Content-Length': contentLength,
-        'Content-Type': file.contentType,
-      });
-  
-      // Stream the video
-      const readStream = gridfsBucket.openDownloadStream(file._id, {
-        start,
-        end: end + 1, // `end` is inclusive, so we need to go one byte beyond
-      });
-  
-      readStream.pipe(res);
-    } catch (err) {
-      console.error(err);
-      res.status(500).json({ error: 'Server error' });
-    }
-  });
   
 router.get('/image', authenticateToken, async(req, res) => {
 
@@ -220,14 +218,6 @@ router.get('/image', authenticateToken, async(req, res) => {
             if (!currentUser) {
                 return res.status(404).json({ message: "User does not exist" });
             }
-        
-            // // Replace this hardcoded ObjectId with dynamic data
-            // const fileId = await gfsBucket.find({_id: new ObjectId(currentUser.fileId)}).next()//'674e0a00a9dd8fa0415adb13'//'674ddbbd74fcc151443f4eef';
-        
-            // // Validate ObjectId format
-            // if (!fileId) {
-            //     return res.status(400).json({ message: "Invalid file ID" });
-            // }
         
             // Fetch the file from GridFS
             const file = await gfsBucket.find({ _id: new ObjectId(currentUser.fileId) }).next();

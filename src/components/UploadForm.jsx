@@ -38,7 +38,7 @@ const UploadForm = () => {
           try {
             const data = {username: formData.username, email: formData.email}
             console.log(file)
-            const res = await axios.post(`${process.env.REACT_APP_BASE_URL}/stream/video`, form, {
+            const res = await axios.post(`${process.env.REACT_APP_BASE_URL}/stream/upload`, form, {
               withCredentials: true,
               headers: {
                 'Content-Type': 'multipart/form-data',

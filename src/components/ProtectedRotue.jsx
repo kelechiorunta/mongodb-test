@@ -20,6 +20,7 @@ const ProtectedRoute = () => {
         }
         catch(err){
                 console.error(err.message);
+                localStorage.clear();
                 
         }
         finally{

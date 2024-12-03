@@ -4,27 +4,29 @@ import UploadForm from './UploadForm.jsx';
 import UserProfile from './UserProfile.jsx';
 import VideoPlayer from './VideoPlayer.jsx';
 import { memo } from 'react';
+import { useNavigation, useLocation } from 'react-router-dom';
 
 function ViewForm() {
- 
+  const location = useLocation();
   const [api, setApi] = useState(null);
   const [details, setDetails] = useState('');
   //const apidomain = 'http://localhost:3500'//process.env.NODE_ENV=='production'? 'https://node-test-bice.vercel.app' : 'http://localhost:3500'
+  const user = JSON.parse(localStorage.getItem('userData'))
 
-//   useEffect(() => {
-//     const getData = async() => {
-//       try{
-//         const res = await axios.get(`${process.env.REACT_APP_BASE_URL}/getApi`, { withCredentials: true });
-//         console.log(res.data?.streamedData);
-//         setApi(res.data?.streamedData)
-//       }
-//       catch(err){
-//         console.error(err.message)
-//       }
-//     }
-//     getData();
+  useEffect(() => {
+    const getData = async() => {
+      try{
+        const res = await axios.get(`${process.env.REACT_APP_BASE_URL}/stream/videos`, { withCredentials: true });
+        console.log(res.data?.streamedData);
+        setApi(res.data?.streamedData)
+      }
+      catch(err){
+        console.error(err.message)
+      }
+    }
+    getData();
    
-//   },[]);
+  },[`${process.env.REACT_APP_BASE_URL}/stream/videos`]);
 
 
   const handleChange = (e) => {
@@ -59,11 +61,11 @@ function ViewForm() {
     <header className="App-header">
 
     {/* <video className='rounded-md shadow-md z-20' controls width="640">
-      <source src={videoUrl} type="video/mp4" />
+      <source src={`${process.env.REACT_APP_BASE_URL}/stream/videos`} type="video/mp4" />
       Your browser does not support the video tag.
     </video> */}
-
-    <VideoPlayer/>
+    {console.log(user)}
+    <VideoPlayer user={user}/>
 
     <UserProfile/>
     {/* <img src={`${apidomain}/stream/image`} alt='' width={100} height={100} /> */}
@@ -93,4 +95,4 @@ function ViewForm() {
      {api}
     </a> */}
 
-    export default memo(ViewForm)
+    export default ViewForm
