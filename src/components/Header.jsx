@@ -11,6 +11,11 @@ const Header = () => {
     try{
         const res = await axios.get(`${process.env.REACT_APP_BASE_URL}/auth/logout`, {withCredentials: true});
         console.log(res.data.message);
+        localStorage.removeItem('userData');
+        localStorage.removeItem('cachedUrl');
+        localStorage.removeItem('pictureUrl');
+        localStorage.clear();
+        window.location.href = '/login'
         navigate('/login')
     }
     catch(err){

@@ -221,16 +221,16 @@ router.get('/image', authenticateToken, async(req, res) => {
                 return res.status(404).json({ message: "User does not exist" });
             }
         
-            // Replace this hardcoded ObjectId with dynamic data
-            const fileId = '674e0a00a9dd8fa0415adb13'//'674ddbbd74fcc151443f4eef';
+            // // Replace this hardcoded ObjectId with dynamic data
+            // const fileId = await gfsBucket.find({_id: new ObjectId(currentUser.fileId)}).next()//'674e0a00a9dd8fa0415adb13'//'674ddbbd74fcc151443f4eef';
         
-            // Validate ObjectId format
-            // if (!ObjectId.isValid(fileId)) {
+            // // Validate ObjectId format
+            // if (!fileId) {
             //     return res.status(400).json({ message: "Invalid file ID" });
             // }
         
             // Fetch the file from GridFS
-            const file = await gfsBucket.find({ _id: new ObjectId(fileId) }).next();
+            const file = await gfsBucket.find({ _id: new ObjectId(currentUser.fileId) }).next();
             if (!file) {
                 return res.status(404).json({ message: "File not found" });
             }
@@ -244,7 +244,7 @@ router.get('/image', authenticateToken, async(req, res) => {
             });
         
             // Stream the file to the client
-            const readableStream = gfsBucket.openDownloadStream(new ObjectId(fileId));
+            const readableStream = gfsBucket.openDownloadStream(file._id);
             readableStream.on('error', (err) => {
                 console.error('Stream error:', err);
                 return res.status(500).json({ error: "Error while streaming the file" });

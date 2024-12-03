@@ -43,7 +43,7 @@ const login = async(req, res) => {
             maxAge:60000 * 24 * 60
         }
         res.cookie('kelechi', token, tokenOptions);
-    
+        req.user = user;
         res.status(200).json({message: "Login successful", user})
     }
     catch(err){
@@ -63,6 +63,7 @@ const logout = (req, res) => {
             path: '/'
         }
         res.clearCookie('kelechi', options);
+        req.user = '';
         res.status(200).json({message: "User successfully logged out"})
     }
     catch(err) {

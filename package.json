@@ -34,6 +34,7 @@
     "dev-start": "NODE_ENV=production node --experimental-require-module --watch ./server/index.js",
     "debug": "node inspect index.js",
     "profile": "node --prof index.js",
+    "debug_libs": "NODE_DEBUG=stream,fs,util node ./server/index.js",
     "env": "node --env-file=.env ./server/index.js"
   },
   "eslintConfig": {

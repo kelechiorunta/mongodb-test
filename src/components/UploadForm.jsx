@@ -163,7 +163,7 @@ const UploadForm = () => {
           />
         </div> */}
         <div className="mb-4">
-          <label className="block mb-2 font-medium">Video File</label>
+          <label className="block mb-2 font-medium">Picture File</label>
           <input
             type="file"
             onChange={handleFileChange}

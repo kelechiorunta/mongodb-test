@@ -8,7 +8,7 @@ import { Readable } from 'stream'
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
 import { promisify } from 'util';
-import { GridFSBucket } from 'mongodb'
+import { GridFSBucket, ObjectId } from 'mongodb'
 import cors from 'cors';
 import express from 'express'
 import { writeFile } from 'fs/promises';
@@ -21,6 +21,7 @@ import multer from 'multer';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { authenticateToken } from './middleware.js';
+import User from './models/User.js';
 
 dotenv.config();
 
@@ -132,7 +133,7 @@ app.post('/saveApi', async(req, res) => {
     }
 })
 
-app.post('/file', upload.single('file'), async(req, res) => {
+app.post('/file', upload.single('file'), authenticateToken, async(req, res) => {
     // const { file } = req.file;
     let gfsBucket;
     if (mongoose.connection.db){
@@ -152,15 +153,32 @@ app.post('/file', upload.single('file'), async(req, res) => {
     }
 
     try{
+
+        const currentUser = await User.findOne({email: req.user?.email});
+        if (!currentUser) {
+            return res.status(400).json({error: "No active user!"})
+        }
+
+        const existingfile = await gfsBucket.find({_id: new ObjectId(currentUser.fileId)}).next();
+
+    if (existingfile) {
+        console.log(existingfile)
+        // res.status(400).json({error: "File already exists"})
+        await gfsBucket.delete(new ObjectId(currentUser.fileId))
+    }
         const readablestream = bufferstream(req.file.buffer)
         // Create an upload stream with GridFSBucket
         const writeablestream = gfsBucket.openUploadStream(req.file.originalname, {
             contentType: req.file.mimetype, // Set content type for the file
           });
         await piplelineAsync(readablestream, writeablestream);
+
+        currentUser.fileId = writeablestream.id;
+        await currentUser.save();
+        
         res.status(201).json({
             message: 'Upload successful',
-            fileId: writeablestream.id,
+            id: writeablestream.id,
           });
     }
     catch(err){
