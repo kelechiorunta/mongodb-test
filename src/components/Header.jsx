@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { Menu, X } from "lucide-react";
 import axios from "axios";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 
 const Header = () => {
   const navigate = useNavigate();
@@ -32,9 +32,12 @@ const Header = () => {
 
           {/* Desktop Menu */}
           <nav className="hidden md:flex space-x-8 items-center">
-            <a href="/" className="hover:text-gray-300">Home</a>
+          <Link to="/" className="hover:text-gray-300">Home</Link>
+          <Link to="/about" className="hover:text-gray-300">About Us</Link>
+          <Link to="/contact" className="hover:text-gray-300">Contact</Link>
+            {/* <a href="/" className="hover:text-gray-300">Home</a>
             <a href="/about" className="hover:text-gray-300">About Us</a>
-            <a href="/contact" className="hover:text-gray-300">Contact</a>
+            <a href="/contact" className="hover:text-gray-300">Contact</a> */}
             <button onClick={handleLogout}
             className="bg-red-600 px-4 py-2 rounded hover:bg-red-700">
               Logout

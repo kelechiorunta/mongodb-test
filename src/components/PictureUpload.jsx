@@ -34,28 +34,28 @@ const PictureUpload = () => {
   };
 
   return (
-    <div className="absolute top-0 left-0 w-full h-auto">
+    <div className="absolute top-0 left-0 w-full h-full ">
       {console.log("PICTURE", pictureUrl)}
       {/* Display the placeholder image until the actual image is loaded */}
       {isLoadingPic && (
         <img
-          className="rounded-md w-full h-auto blur-md animate-pulse"
+          className="rounded-md w-full h-full blur-md animate-pulse"
           src={placeholder} // Path to the placeholder image
           alt="Loading placeholder"
-          width={1600} // Adjust dimensions as needed
-          height={300}
+          width={160} // Adjust dimensions as needed
+          height={'auto'}
         />
       )}
 
       {/* Actual image from the backend */}
       <img
-        className={`rounded-md w-full h-auto transition-opacity duration-500 ${
+        className={`rounded-md w-full h-full transition-opacity duration-500 ${
           isLoadingPic ? 'opacity-0' : 'opacity-100'
         }`} // Smooth fade-in effect
         src={pictureUrl} // Backend image URL
         alt="User profile"
-        width={1600}
-        height={300}
+        width={160}
+        height={'auto'}
         onLoad={handleImageLoad} // Triggered when the image loads
       />
     </div>

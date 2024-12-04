@@ -12,70 +12,152 @@ import multer from 'multer';
 import jwt from 'jsonwebtoken';
 import { Readable } from 'stream'; // Ensure Readable is imported
 import { authenticateToken } from '../middleware.js';
+import NodeCache from 'node-cache';
 
 const router = express.Router();
 const pipelineAsync = promisify(pipeline);
+const cache = new NodeCache({ stdTTL: 3600, checkperiod: 600 }); // Cache for 1 hour
 
 // Configure Multer to handle file uploads in memory
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
 
-router.get('/videos/:email', authenticateToken, async (req, res) => {
+// //CURRENT WORKING CODE WITHOUT CACHING
+// router.get('/videos/:email', authenticateToken, async (req, res) => {
+//     try {
+//       const gridfsBucket = new GridFSBucket(mongoose.connection.db, {
+//         bucketName: 'videos',
+//       });
+
+//       const currentEmail = req.params.email
+  
+//       const range = req.headers.range;
+//       if (!range) {
+//         return res.status(416).send('Range header is required');
+//       }
+  
+//       // Retrieve the user and video file
+//       const currentUser = await User.findOne({ email: currentEmail });
+//       if (!currentUser) {
+//         return res.status(400).json({ message: 'User does not exist' });
+//       }
+  
+//       const file = await gridfsBucket.find({ _id: currentUser.videoId }).next();
+//       if (!file) {
+//         return res.status(404).json({ error: 'File not found' });
+//       }
+  
+//       // Validate the Range header
+//       const start = Number(range.replace(/\D/g, ''));
+//       if (isNaN(start) || start >= file.length) {
+//         return res.status(416).set({
+//           'Content-Range': `bytes */${file.length}`,
+//         }).send('Requested range is not satisfiable');
+//       }
+  
+//       const CHUNK_SIZE = 10 ** 6; // 1MB
+//       const end = Math.min(start + CHUNK_SIZE, file.length - 1);
+//       const contentLength = end - start + 1;
+  
+//       // Set response headers for partial content
+//       res.status(206).set({
+//         'Content-Range': `bytes ${start}-${end}/${file.length}`,
+//         'Accept-Ranges': 'bytes',
+//         'Content-Length': contentLength,
+//         'Content-Type': file.contentType,
+//       });
+  
+//       // Stream the video chunk
+//       const readStream = gridfsBucket.openDownloadStream(file._id, {
+//         start,
+//         end: end + 1, // Include the last byte
+//       });
+  
+//       readStream.pipe(res);
+//     } catch (err) {
+//       console.error('Error fetching video:', err.message);
+//       res.status(500).json({ error: 'Internal server error' });
+//     }
+//   });
+
+  //WITH CACHING
+
+  router.get('/videos/:email', authenticateToken, async (req, res) => {
     try {
       const gridfsBucket = new GridFSBucket(mongoose.connection.db, {
         bucketName: 'videos',
       });
-
-      const currentEmail = req.params.email
   
+      const currentEmail = req.params.email;
       const range = req.headers.range;
       if (!range) {
         return res.status(416).send('Range header is required');
       }
   
-      // Retrieve the user and video file
-      const currentUser = await User.findOne({ email: currentEmail });
-      if (!currentUser) {
-        return res.status(400).json({ message: 'User does not exist' });
+      // Check cache for the video metadata
+      const cacheKey = `video-${currentEmail}`;
+      let cachedData = cache.get(cacheKey);
+  
+      if (!cachedData) {
+        const currentUser = await User.findOne({ email: currentEmail });
+        if (!currentUser) {
+          return res.status(400).json({ message: 'User does not exist' });
+        }
+  
+        const file = await gridfsBucket.find({ _id: currentUser.videoId }).next();
+        if (!file) {
+          return res.status(404).json({ error: 'File not found' });
+        }
+  
+        // Cache the file metadata
+        cachedData = {
+          fileId: file._id,
+          length: file.length,
+          contentType: file.contentType,
+        };
+        cache.set(cacheKey, cachedData);
       }
   
-      const file = await gridfsBucket.find({ _id: currentUser.videoId }).next();
-      if (!file) {
-        return res.status(404).json({ error: 'File not found' });
-      }
+      const { fileId, length, contentType } = cachedData;
   
-      // Validate the Range header
+      // Parse the range
       const start = Number(range.replace(/\D/g, ''));
-      if (isNaN(start) || start >= file.length) {
+      if (isNaN(start) || start >= length) {
         return res.status(416).set({
-          'Content-Range': `bytes */${file.length}`,
+          'Content-Range': `bytes */${length}`,
         }).send('Requested range is not satisfiable');
       }
   
       const CHUNK_SIZE = 10 ** 6; // 1MB
-      const end = Math.min(start + CHUNK_SIZE, file.length - 1);
+      const end = Math.min(start + CHUNK_SIZE, length - 1);
       const contentLength = end - start + 1;
   
-      // Set response headers for partial content
+      // Set response headers
       res.status(206).set({
-        'Content-Range': `bytes ${start}-${end}/${file.length}`,
+        'Content-Range': `bytes ${start}-${end}/${length}`,
         'Accept-Ranges': 'bytes',
         'Content-Length': contentLength,
-        'Content-Type': file.contentType,
+        'Content-Type': contentType,
+        'Cache-Control': 'public, max-age=3600', // Cache for 1 hour
+        // ETag: `"video-${fileId}"`,
       });
   
       // Stream the video chunk
-      const readStream = gridfsBucket.openDownloadStream(file._id, {
+      const readStream = gridfsBucket.openDownloadStream(fileId, {
         start,
-        end: end + 1, // Include the last byte
+        end: end + 1,
       });
   
       readStream.pipe(res);
+  
     } catch (err) {
       console.error('Error fetching video:', err.message);
       res.status(500).json({ error: 'Internal server error' });
     }
-  });  
+  });
+
+
+  //////////////////////////////////////////////////
 
 // Upload route
 router.post('/upload', upload.single('video'), authenticateToken, async (req, res) => {
