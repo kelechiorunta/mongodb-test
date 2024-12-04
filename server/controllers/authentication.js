@@ -7,7 +7,7 @@ import { connectDB } from "../db.js";
 //Verify Token for middleware and every request/response cycle
 const verifyToken = (req, res) => {
     if (!req?.cookies?.kelechi || !req.user) {
-        return res.status(400).json({isValid: false, error: "No authorization, expired cookie!"});
+        return res.status(200).json({isValid: false, error: "No authorization, expired cookie!"});
     }
     else{
         return res.status(200).json({isValid: true, user:req.user, message:"Token Valid"})
@@ -66,8 +66,8 @@ const logout = async(req, res) => {
             path: '/'
         }
         res.clearCookie('kelechi', options);
-        req.user = '';
-        req.headers.range= null
+        // req.user = '';
+        // req.headers.range= null
         
         // await mongoose.connection.close()
         res.status(200).json({message: "User successfully logged out"})

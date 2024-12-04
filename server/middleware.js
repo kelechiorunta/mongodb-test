@@ -9,7 +9,7 @@ const authenticateToken = async(req, res, next) => {
 
     if (!req.cookies?.kelechi) {
         // connectDB(process.env.MONGO_URI);
-        req.user = null
+        // req.user = null
         return res.redirect('/login');
     }
 

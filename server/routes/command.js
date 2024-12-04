@@ -8,7 +8,8 @@ import { GridFSBucket, ObjectId } from 'mongodb'
 import { pipeline, Readable } from 'stream';
 import User from '../models/User.js';
 import { promisify } from 'util';
-import upload from '../upload.js';
+// import upload from '../upload.js';
+import sharp from 'sharp';
 
 const sipRouter = express.Router();
 const pipelineAsync = promisify(pipeline);
@@ -19,8 +20,8 @@ const pipelineAsync = promisify(pipeline);
 //   //limits: { fileSize: 50 * 1024 * 1024 }, // Limit files to 5MB
 // });
 
-// const storage = multer.memoryStorage();
-// const upload = multer({ storage });
+const storage = multer.memoryStorage();
+const upload = multer({ storage });
 
 // Image upload and placeholder generation endpoint
 sipRouter.post('/sipUpload', upload.single('image'), (req, res) => {
@@ -253,6 +254,79 @@ sipRouter.post('/sipUpload', upload.single('image'), (req, res) => {
 //     }
 //   });
 
+// sipRouter.post('/createPlaceholder/:email', upload.single('picture'), async (req, res) => {
+//     try {
+//       // Ensure connection to GridFS bucket
+//       const gfs = new GridFSBucket(mongoose.connection.db, {
+//         bucketName: 'pictures',
+//       });
+  
+//       const currentUser = await User.findOne({ email: req.params.email });
+//       if (!currentUser) {
+//         return res.status(400).json({ error: 'No such user' });
+//       }
+  
+//       // Delete existing images in GridFS
+//       if (currentUser.pictureId) await gfs.delete(new ObjectId(currentUser.pictureId));
+//       if (currentUser.placeholderId) await gfs.delete(new ObjectId(currentUser.placeholderId));
+  
+//       // Uploaded file details
+//       const { path: localFilePath, originalname, mimetype } = req.file;
+  
+//       // Save the original image to GridFS
+//       const fullImageWritableStream = gfs.openUploadStream(originalname, {
+//         contentType: mimetype,
+//       });
+//       const fullImageReadableStream = fs.createReadStream(localFilePath);
+//       await pipelineAsync(fullImageReadableStream, fullImageWritableStream);
+  
+//       // Directory for storing local files
+//       const LOCAL_UPLOAD_DIR = path.resolve('public/images');
+//       // Save the placeholder image to local filesystem
+//       const placeholderFilePath = path.resolve(
+//         LOCAL_UPLOAD_DIR,
+//         `${path.basename(originalname, path.extname(originalname))}-small${path.extname(originalname)}`
+//       );
+  
+//       const command = `sips -Z 20 ${localFilePath} --out ${placeholderFilePath}`;
+//       await new Promise((resolve, reject) => {
+//         exec(command, (error, stdout, stderr) => {
+//           if (error) return reject(new Error('Failed to create placeholder image.'));
+//           resolve();
+//         });
+//       });
+  
+//       // Save the placeholder image to GridFS
+//       const placeholderBuffer = fs.readFileSync(placeholderFilePath);
+//       const placeholderWritableStream = gfs.openUploadStream(
+//         `${path.basename(originalname, path.extname(originalname))}-small`,
+//         { contentType: mimetype }
+//       );
+//       const placeholderReadableStream = new Readable();
+//       placeholderReadableStream.push(placeholderBuffer);
+//       placeholderReadableStream.push(null);
+//       await pipelineAsync(placeholderReadableStream, placeholderWritableStream);
+  
+//       // Update the user's image details in the database
+//       currentUser.pictureId = fullImageWritableStream.id;
+//       currentUser.placeholderId = placeholderWritableStream.id;
+//       await currentUser.save();
+  
+//       // Clean up local files
+//       fs.unlinkSync(localFilePath);
+//       fs.unlinkSync(placeholderFilePath);
+  
+//       res.status(201).json({
+//         message: 'Upload successful',
+//         pictureId: fullImageWritableStream.id,
+//         placeholderId: placeholderWritableStream.id,
+//       });
+//     } catch (error) {
+//       console.error(error);
+//       res.status(500).json({ message: 'Error processing the image' });
+//     }
+//   });
+  
 sipRouter.post('/createPlaceholder/:email', upload.single('picture'), async (req, res) => {
     try {
       // Ensure connection to GridFS bucket
@@ -270,33 +344,23 @@ sipRouter.post('/createPlaceholder/:email', upload.single('picture'), async (req
       if (currentUser.placeholderId) await gfs.delete(new ObjectId(currentUser.placeholderId));
   
       // Uploaded file details
-      const { path: localFilePath, originalname, mimetype } = req.file;
+      const { buffer, originalname, mimetype } = req.file;
   
-      // Save the original image to GridFS
+      // Save the full image to GridFS
       const fullImageWritableStream = gfs.openUploadStream(originalname, {
         contentType: mimetype,
       });
-      const fullImageReadableStream = fs.createReadStream(localFilePath);
+      const fullImageReadableStream = new Readable();
+      fullImageReadableStream.push(buffer);
+      fullImageReadableStream.push(null);
       await pipelineAsync(fullImageReadableStream, fullImageWritableStream);
   
-      // Directory for storing local files
-      const LOCAL_UPLOAD_DIR = path.resolve('public/images');
-      // Save the placeholder image to local filesystem
-      const placeholderFilePath = path.resolve(
-        LOCAL_UPLOAD_DIR,
-        `${path.basename(originalname, path.extname(originalname))}-small${path.extname(originalname)}`
-      );
-  
-      const command = `sips -Z 20 ${localFilePath} --out ${placeholderFilePath}`;
-      await new Promise((resolve, reject) => {
-        exec(command, (error, stdout, stderr) => {
-          if (error) return reject(new Error('Failed to create placeholder image.'));
-          resolve();
-        });
-      });
+      // Generate placeholder image (resize and optimize with sharp)
+      const placeholderBuffer = await sharp(buffer)
+        .resize(20) // Resize to a smaller width for placeholder
+        .toBuffer();
   
       // Save the placeholder image to GridFS
-      const placeholderBuffer = fs.readFileSync(placeholderFilePath);
       const placeholderWritableStream = gfs.openUploadStream(
         `${path.basename(originalname, path.extname(originalname))}-small`,
         { contentType: mimetype }
@@ -311,10 +375,6 @@ sipRouter.post('/createPlaceholder/:email', upload.single('picture'), async (req
       currentUser.placeholderId = placeholderWritableStream.id;
       await currentUser.save();
   
-      // Clean up local files
-      fs.unlinkSync(localFilePath);
-      fs.unlinkSync(placeholderFilePath);
-  
       res.status(201).json({
         message: 'Upload successful',
         pictureId: fullImageWritableStream.id,
@@ -325,6 +385,5 @@ sipRouter.post('/createPlaceholder/:email', upload.single('picture'), async (req
       res.status(500).json({ message: 'Error processing the image' });
     }
   });
-  
   
 export default sipRouter;
