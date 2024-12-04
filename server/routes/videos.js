@@ -160,7 +160,7 @@ router.get('/image', authenticateToken, async(req, res) => {
         }
     });
 
-    router.get('/picture', authenticateToken, async (req, res) => {
+    router.get('/picture/:name', authenticateToken, async (req, res) => {
         try {
           // Initialize GridFSBucket
           const gridfsBucket = new GridFSBucket(mongoose.connection.db, {
@@ -168,7 +168,7 @@ router.get('/image', authenticateToken, async(req, res) => {
           });
       
           // Find the current user
-          const currentUser = await User.findOne({ email: req.user?.email });
+          const currentUser = await User.findOne({ username: req.params.name });
       
           if (!currentUser) {
             return res.status(400).json({ message: "User does not exist" });
@@ -183,6 +183,54 @@ router.get('/image', authenticateToken, async(req, res) => {
           if (!file) {
             return res.status(404).json({ message: "Picture not found" });
           }
+
+          console.log('CURRENTPIC', file)
+      
+          // Set appropriate headers for the image
+          res.set({
+            'Content-Type': file.contentType || 'image/jpeg', // Default to JPEG if contentType is not set
+            'Content-Length': file.length,
+          });
+      
+          // Stream the picture
+          const readStream = gridfsBucket.openDownloadStream(file._id);
+          readStream.on('error', (err) => {
+            console.error('Error streaming picture:', err);
+            res.status(500).json({ error: 'Error streaming picture' });
+          });
+      
+          readStream.pipe(res);
+        } catch (err) {
+          console.error(err);
+          res.status(500).json({ error: 'Server error' });
+        }
+      });
+
+      router.get('/placeholderPic/:name', authenticateToken, async (req, res) => {
+        try {
+          // Initialize GridFSBucket
+          const gridfsBucket = new GridFSBucket(mongoose.connection.db, {
+            bucketName: 'pictures',
+          });
+      
+          // Find the current user
+          const currentUser = await User.findOne({ username: req.params.name });
+      
+          if (!currentUser) {
+            return res.status(400).json({ message: "User does not exist" });
+          }
+      
+          if (!currentUser.pictureId) {
+            return res.status(404).json({ message: "Picture not found" });
+          }
+      
+          // Fetch the file from GridFS
+          const file = await gridfsBucket.find({ _id: currentUser.placeholderId }).next();
+          if (!file) {
+            return res.status(404).json({ message: "Picture not found" });
+          }
+
+          console.log('CURRENTPIC', file)
       
           // Set appropriate headers for the image
           res.set({
@@ -312,4 +360,6 @@ router.get('/image', authenticateToken, async(req, res) => {
               res.status(500).json({ error: 'Upload failed' });
             }
           });
+
+          
 export default router; 

@@ -24,6 +24,7 @@ import mongoose from 'mongoose';
 import { authenticateToken } from './middleware.js';
 import User from './models/User.js';
 import jwt from 'jsonwebtoken'
+import sipRouter from './routes/command.js'
 
 
 dotenv.config();
@@ -50,6 +51,8 @@ let corsSetup = {
 }
 
 app.use(express.static(path.resolve('build')));
+// Serve static files (to access the images folder)
+app.use('/images', express.static(path.join(import.meta.dirname, 'public/images')));
 app.use(cors(corsSetup));
 app.use(bodyParser.urlencoded({extended: false}));
 app.use(bodyParser.json());
@@ -76,6 +79,7 @@ app.enable('trust proxy');
 
 app.use('/auth', authRouter);
 app.use('/stream', videosRoutes);
+app.use('/sip', sipRouter);
 
 const main = async() => {
     
@@ -112,10 +116,10 @@ const run = async () => {
 
 run();
 
-// app.get('*', (req, res) => {
-//     const indexFile = path.resolve('build', 'index.html');
-//     res.sendFile(indexFile);
-// })
+app.get('*', (req, res) => {
+    const indexFile = path.resolve('build', 'index.html');
+    res.sendFile(indexFile);
+})
 
 app.get('/', (req, res) => {
     const indexFile = path.resolve('build', 'index.html');

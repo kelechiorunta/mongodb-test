@@ -80,7 +80,7 @@ const UserProfile = () => {
             width={2000} // Skeleton width
             // circle={true} // Make it circular for profile pictures
           />
-          <p>Loading ...</p>
+          <p>Loading image...</p>
         </div>
       ) : (
         // Show image once loaded
