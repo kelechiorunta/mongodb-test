@@ -34,11 +34,15 @@
     "build": "react-scripts build",
     "test": "react-scripts test",
     "eject": "react-scripts eject",
-    "dev-start": "NODE_ENV=production node --experimental-require-module --watch ./server/index.js",
+    "run-default": "node --experimental-default-type=module ./server/index.js",
+    "resolve": "node --experimental-import-meta-resolve ./server/index.js",
+    "dev-start": "NODE_ENV=production node --experimental-require-module --import=module --watch ./server/index.js",
     "debug": "node inspect index.js",
-    "profile": "node --prof index.js",
+    "profile": "node --prof ./server/index.js",
     "debug_libs": "NODE_DEBUG=stream,fs,util node ./server/index.js",
-    "env": "node --env-file=.env ./server/index.js"
+    "env": "node --env-file=.env ./server/index.js",
+    "input-hello-command": "node --input-type=module -e \"console.log((await import('./server/hello.js')).default())\"",
+    "print-profiler": "node --prof-process isolate-0x7f995c900000-27503-v8.log > profile.txt"
   },
   "eslintConfig": {
     "extends": [

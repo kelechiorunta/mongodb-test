@@ -5,6 +5,7 @@ import UserProfile from './UserProfile.jsx';
 import VideoPlayer from './VideoPlayer.jsx';
 import { memo } from 'react';
 import { useNavigation, useLocation } from 'react-router-dom';
+import Profile from './Profile.jsx';
 
 function ViewForm() {
   const location = useLocation();
@@ -67,7 +68,10 @@ function ViewForm() {
     {console.log(user)}
     <VideoPlayer user={user}/>
 
+    
+
     <UserProfile/>
+    
     {/* <img src={`${apidomain}/stream/image`} alt='' width={100} height={100} /> */}
 
     {/* <form onSubmit={handleSave}>
@@ -75,7 +79,7 @@ function ViewForm() {
         <button type='submit'>Save</button> 
     </form> */}
   </header>
-
+  <Profile />
   <UploadForm/>
   </>
   )

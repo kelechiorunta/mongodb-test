@@ -18,6 +18,9 @@ import cookieParser from 'cookie-parser';
 import { connectDB, gridfsBucket } from './db.js';
 import videosRoutes from './routes/videos.js';
 import authRouter from './routes/auth.js';
+import { createRequire } from 'module';// The createRequire is the API meant to load ES6 with the require loader.
+const require = createRequire(import.meta.url) //resolve any file using the current folder of the file(index.js) which is server as the base path
+const hello = require('./hello.js');// loads ES6 with the require loader. Alternatively, we can use await import('file'). This is the same as const hello = await import('./hello.js').
 import multer from 'multer';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
@@ -26,7 +29,7 @@ import User from './models/User.js';
 import jwt from 'jsonwebtoken'
 import sipRouter from './routes/command.js'
 
-
+console.log(hello.default())
 dotenv.config();
 
 const app = express();

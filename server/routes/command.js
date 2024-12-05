@@ -9,7 +9,9 @@ import { pipeline, Readable } from 'stream';
 import User from '../models/User.js';
 import { promisify } from 'util';
 // import upload from '../upload.js';
+import { authenticateToken } from '../middleware.js';
 import sharp from 'sharp';
+import NodeCache from 'node-cache';
 
 const sipRouter = express.Router();
 const pipelineAsync = promisify(pipeline);
@@ -22,6 +24,8 @@ const pipelineAsync = promisify(pipeline);
 
 const storage = multer.memoryStorage();
 const upload = multer({ storage });
+
+const cache = new NodeCache({ stdTTL: 3600, checkperiod: 600 }); // Cache for 1 hour
 
 // Image upload and placeholder generation endpoint
 sipRouter.post('/sipUpload', upload.single('image'), (req, res) => {
@@ -326,6 +330,9 @@ sipRouter.post('/sipUpload', upload.single('image'), (req, res) => {
 //       res.status(500).json({ message: 'Error processing the image' });
 //     }
 //   });
+
+
+//CURRENT WORKING CODE WITHOUT CACHE
   
 sipRouter.post('/createPlaceholder/:email', upload.single('picture'), async (req, res) => {
     try {
@@ -385,5 +392,157 @@ sipRouter.post('/createPlaceholder/:email', upload.single('picture'), async (req
       res.status(500).json({ message: 'Error processing the image' });
     }
   });
+
+  sipRouter.post('/profile/:email', upload.single('picture'), async (req, res) => {
+    try {
+      // Ensure connection to GridFS bucket
+      const gfs = new GridFSBucket(mongoose.connection.db, {
+        bucketName: 'profilePics',
+      });
+  
+      const currentUser = await User.findOne({ email: req.params.email });
+      if (!currentUser) {
+        return res.status(400).json({ error: 'No such user' });
+      }
+  
+      // Delete existing images in GridFS
+      if (currentUser.profilePicId) await gfs.delete(new ObjectId(currentUser.profilePicId));
+      if (currentUser.profilePlaceholderId) await gfs.delete(new ObjectId(currentUser.profilePlaceholderId));
+  
+      // Uploaded file details
+      const { buffer, originalname, mimetype } = req.file;
+  
+      // Save the full image to GridFS
+      const fullImageWritableStream = gfs.openUploadStream(originalname, {
+        contentType: mimetype,
+      });
+      const fullImageReadableStream = new Readable();
+      fullImageReadableStream.push(buffer);
+      fullImageReadableStream.push(null);
+      await pipelineAsync(fullImageReadableStream, fullImageWritableStream);
+  
+      // Generate placeholder image (resize and optimize with sharp)
+      const placeholderBuffer = await sharp(buffer)
+        .resize(20) // Resize to a smaller width for placeholder
+        .toBuffer();
+  
+      // Save the placeholder image to GridFS
+      const placeholderWritableStream = gfs.openUploadStream(
+        `${path.basename(originalname, path.extname(originalname))}-small`,
+        { contentType: mimetype }
+      );
+      const placeholderReadableStream = new Readable();
+      placeholderReadableStream.push(placeholderBuffer);
+      placeholderReadableStream.push(null);
+      await pipelineAsync(placeholderReadableStream, placeholderWritableStream);
+  
+      // Update the user's image details in the database
+      currentUser.profilePicId = fullImageWritableStream.id;
+      currentUser.profilePlaceholderId = placeholderWritableStream.id;
+      await currentUser.save();
+  
+      res.status(201).json({
+        message: 'Upload successful',
+        profilePicId: fullImageWritableStream.id,
+        profilePlaceholderId: placeholderWritableStream.id,
+      });
+    } catch (error) {
+      console.error(error);
+      res.status(500).json({ message: 'Error processing the image' });
+    }
+  });
+
+  sipRouter.get('/profilePlaceholderPic/:name', async (req, res) => {
+    try {
+      // Initialize GridFSBucket
+      const gridfsBucket = new GridFSBucket(mongoose.connection.db, {
+        bucketName: 'profilePics',
+      });
+  
+      // Find the current user
+      const currentUser = await User.findOne({ username: req.params.name });
+  
+      if (!currentUser) {
+        return res.status(400).json({ message: "User does not exist" });
+      }
+  
+      if (!currentUser.profilePlaceholderId) {
+        return res.status(404).json({ message: "Placeholder not found" });
+      }
+  
+      // Fetch the file from GridFS
+      const file = await gridfsBucket.find({ _id: currentUser.profilePlaceholderId }).next();
+      if (!file) {
+        return res.status(404).json({ message: "Picture not found" });
+      }
+
+      console.log('CURRENTPIC', file)
+  
+      // Set appropriate headers for the image
+      res.set({
+        'Content-Type': file.contentType || 'image/jpeg', // Default to JPEG if contentType is not set
+        'Content-Length': file.length,
+      });
+  
+      // Stream the picture
+      const readStream = gridfsBucket.openDownloadStream(file._id);
+      readStream.on('error', (err) => {
+        console.error('Error streaming picture:', err);
+        res.status(500).json({ error: 'Error streaming picture' });
+      });
+  
+      readStream.pipe(res);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
+  sipRouter.get('/profilePic/:name', async (req, res) => {
+    try {
+      // Initialize GridFSBucket
+      const gridfsBucket = new GridFSBucket(mongoose.connection.db, {
+        bucketName: 'profilePics',
+      });
+  
+      // Find the current user
+      const currentUser = await User.findOne({ username: req.params.name });
+  
+      if (!currentUser) {
+        return res.status(400).json({ message: "User does not exist" });
+      }
+  
+      if (!currentUser.profilePicId) {
+        return res.status(404).json({ message: "Placeholder not found" });
+      }
+  
+      // Fetch the file from GridFS
+      const file = await gridfsBucket.find({ _id: currentUser.profilePicId }).next();
+      if (!file) {
+        return res.status(404).json({ message: "Picture not found" });
+      }
+
+      console.log('CURRENTPIC', file)
+  
+      // Set appropriate headers for the image
+      res.set({
+        'Content-Type': file.contentType || 'image/jpeg', // Default to JPEG if contentType is not set
+        'Content-Length': file.length,
+      });
+  
+      // Stream the picture
+      const readStream = gridfsBucket.openDownloadStream(file._id);
+      readStream.on('error', (err) => {
+        console.error('Error streaming picture:', err);
+        res.status(500).json({ error: 'Error streaming picture' });
+      });
+  
+      readStream.pipe(res);
+    } catch (err) {
+      console.error(err);
+      res.status(500).json({ error: 'Server error' });
+    }
+  });
+
   
 export default sipRouter;

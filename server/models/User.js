@@ -10,6 +10,8 @@ const userSchema = new mongoose.Schema({
     videoId: { type: mongoose.Schema.Types.ObjectId, ref: 'videos' }, // Reference to GridFS file
     pictureId: { type: mongoose.Schema.Types.ObjectId, ref: 'pictures' }, // Reference to GridFS file
     placeholderId: { type: mongoose.Schema.Types.ObjectId, ref: 'pictures' },
+    profilePicId: { type: mongoose.Schema.Types.ObjectId, ref: 'pictures' },
+    profilePlaceholderId: { type: mongoose.Schema.Types.ObjectId, ref: 'pictures' },
     fileId: { type: mongoose.Schema.Types.ObjectId, ref: 'file' }, // Reference to GridFS file
     otp: {
         type: String,
