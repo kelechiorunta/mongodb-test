@@ -7,6 +7,8 @@ import { pipeline, finished } from 'stream/promises'
 import { Readable } from 'stream'
 import { fileURLToPath } from 'url';
 import { dirname } from 'path';
+
+import net from 'net'
 import errorHandler from 'errorhandler'
 import { promisify } from 'util';
 import { GridFSBucket, ObjectId } from 'mongodb'
@@ -18,19 +20,27 @@ import cookieParser from 'cookie-parser';
 import { connectDB, gridfsBucket } from './db.js';
 import videosRoutes from './routes/videos.js';
 import authRouter from './routes/auth.js';
-import { createRequire } from 'module';// The createRequire is the API meant to load ES6 with the require loader.
-const require = createRequire(import.meta.url) //resolve any file using the current folder of the file(index.js) which is server as the base path
-const hello = require('./hello.js');// loads ES6 with the require loader. Alternatively, we can use await import('file'). This is the same as const hello = await import('./hello.js').
+// import { createRequire } from 'module';// The createRequire is the API meant to load ES6 with the require loader.
+// const require = createRequire(import.meta.url) //resolve any file using the current folder of the file(index.js) which is server as the base path
+// const hello = require('./hello.js');// loads ES6 with the require loader. Alternatively, we can use await import('file'). This is the same as const hello = await import('./hello.js').
 import multer from 'multer';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
 import { authenticateToken } from './middleware.js';
 import User from './models/User.js';
-import jwt from 'jsonwebtoken'
 import sipRouter from './routes/command.js'
+// import { client } from './netclient.js';
+// import cluster from 'cluster';
+import os from 'os';
+// import cluster from './cluster.js';
 
-console.log(hello.default())
+// console.log(hello.default())
 dotenv.config();
+
+const cpuCores = os.cpus().length;
+console.log(cpuCores)
+// var timeout;
+
 
 const app = express();
 const storage = multer.memoryStorage();
@@ -62,23 +72,6 @@ app.use(bodyParser.json());
 app.use(cookieParser());
 
 app.enable('trust proxy');
-
-// app.use('*', (req, res, next) => {
-    
-//     // if (req.user) {
-//         jwt.verify(req.cookies.kelechi, process.env.JWT_SECRET, (err, decoded) => {
-//             if (err) {
-//                 return res.status(400).json({error: "Expired or Invalid Token"});
-//             }
-//             const token = decoded.user
-//             req.user = token;
-            
-//             next();
-//         })
-//     // next();
-//     //  }
-    
-// })
 
 app.use('/auth', authRouter);
 app.use('/stream', videosRoutes);
@@ -247,23 +240,53 @@ if (process.env.NODE_ENV === 'production') {
     });
 }
 
-const port = process.env.PORT || 3500
+const port = process.env.PORT || 3500;
 
-app.listen(port, () => {
-    console.log("Hello Node")
-})
+    app.listen(port, () => {
+        console.log("Hello Node ", port);
+        // process.on('message', (msg) => {
+        //     if (msg === "shutdown") {
+        //         process.send('Welldone' );
+        //     }
+        // })
+    })
+    // console.log(`Worker ${process.pid} started`);
 
-//Process that responds to Ctrl+C exit (SIGINT). Exits the process
+
+// Process that responds to Ctrl+C exit (SIGINT). Exits the process
 // process.on('SIGINT', () => {
 //     console.log("Ctrl+C, Shuting down server");
-//     app.close(() => {
+//     server.close(() => {
 //         process.exit(0);
 //     })
     
 // })
 
+// const netServer = net.createServer((socket) => {
+
+//     console.log("Connected successfully")
+//     socket.write('Hello there client');
+
+//     socket.on('data', (data) => {
+//         console.log("Message from client", data)
+//     })
+//     const res = createWriteStream('myresult.txt');
+//     socket.pipe(res);
+
+    
+
+//     socket.on('close', () => {
+//         console.log("Connection closed on client end")
+//     })
+
+    
+// })
+
+// netServer.listen(4000, () => {
+//     console.log(`NetServer listens at port ${4000}`);
+// })
 
 
-console.log(process.env.NODE_ENV)
+// console.log(process.env.NODE_ENV)
 
 // process.stdout.print("NODE_ENV=development --experimental-require-module --watch index.js")
