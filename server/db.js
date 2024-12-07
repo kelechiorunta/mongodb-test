@@ -17,7 +17,7 @@ const connectDB = async (mongoURI) => {
     // Use gridfs-stream for backward compatibility if needed
     
     gfs = gridfsStream(db, mongoose.mongo);
-    gfs.collection('videos');
+    // gfs.collection('videos');
 
     console.log('GridFS initialized');
   } catch (err) {
