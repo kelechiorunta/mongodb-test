@@ -31,16 +31,14 @@ import User from './models/User.js';
 import sipRouter from './routes/command.js'
 // import { client } from './netclient.js';
 // import cluster from 'cluster';
-import os from 'os';
+// import os from 'os';
 // import cluster from './cluster.js';
 
 // console.log(hello.default())
 dotenv.config();
 
-const cpuCores = os.cpus().length;
-console.log(cpuCores)
-// var timeout;
-
+// const numCPUs = os.cpus().length;
+// const NET_SERVER_PORT = 4000;
 
 const app = express();
 const storage = multer.memoryStorage();
@@ -77,40 +75,40 @@ app.use('/auth', authRouter);
 app.use('/stream', videosRoutes);
 app.use('/sip', sipRouter);
 
-const main = async() => {
+// const main = async() => {
     
-    try{
-        const { stdout, stderr } = await exec('/ls');
-        // console.log(stdout, stderr)
-    }
-    catch(err){
-        console.log(err?.message)
-    }
-}
+//     try{
+//         const { stdout, stderr } = await exec('/ls');
+//         // console.log(stdout, stderr)
+//     }
+//     catch(err){
+//         console.log(err?.message)
+//     }
+// }
 
-main();
+// main();
 
-const run = async () => {
-    try {
-        // Create a readable stream for 'kus.txt'
-        const rs = createReadStream('kus.txt', {
-            encoding: 'utf-8',
-            highWaterMark: 16 * 1024, // 16 KB chunks
-        });
+// const run = async () => {
+//     try {
+//         // Create a readable stream for 'kus.txt'
+//         const rs = createReadStream('kus.txt', {
+//             encoding: 'utf-8',
+//             highWaterMark: 16 * 1024, // 16 KB chunks
+//         });
 
-        // Create a writable stream for 'kusman.txt'
-        const ws = createWriteStream('kusman.txt');
+//         // Create a writable stream for 'kusman.txt'
+//         const ws = createWriteStream('kusman.txt');
 
-        // Use pipeline to read from 'kus.txt' and write to 'kusman.txt'
-        await pipeline(rs, ws);
+//         // Use pipeline to read from 'kus.txt' and write to 'kusman.txt'
+//         await pipeline(rs, ws);
 
-        console.log('Pipeline succeeded.');
-    } catch (err) {
-        console.error('Pipeline failed:', err.message);
-    }
-};
+//         console.log('Pipeline succeeded.');
+//     } catch (err) {
+//         console.error('Pipeline failed:', err.message);
+//     }
+// };
 
-run();
+// run();
 
 app.get('*', (req, res) => {
     const indexFile = path.resolve('build', 'index.html');
@@ -211,21 +209,6 @@ app.post('/file', upload.single('file'), authenticateToken, async(req, res) => {
 
 const server = http.createServer(app);
 
-// server.on('request', async(req, res) => {
-//     try{
-//         await readFile('kusman.txt', 'utf-8', (err, data) => {
-//             if (err) throw new Error(err);
-//             console.log(data)
-//             res.write(data)
-//             res.end();
-//         });
-        
-//     }
-//     catch(err){
-//         console.error(err)
-//     }
-// })
-
 // Use the error handler middleware for development
 if (process.env.NODE_ENV === 'development') {
     app.use(errorHandler({ log: true })); // Logs the errors to the console
@@ -244,49 +227,43 @@ const port = process.env.PORT || 3500;
 
     app.listen(port, () => {
         console.log("Hello Node ", port);
-        // process.on('message', (msg) => {
-        //     if (msg === "shutdown") {
-        //         process.send('Welldone' );
-        //     }
-        // })
     })
     // console.log(`Worker ${process.pid} started`);
 
 
 // Process that responds to Ctrl+C exit (SIGINT). Exits the process
-// process.on('SIGINT', () => {
-//     console.log("Ctrl+C, Shuting down server");
-//     server.close(() => {
-//         process.exit(0);
-//     })
+process.on('SIGINT', () => {
+    console.log("Ctrl+C, Shuting down server");
+    server.close(() => {
+        process.exit(0);
+    })
     
-// })
+})
 
-// const netServer = net.createServer((socket) => {
+const netServer = net.createServer((socket) => {
 
-//     console.log("Connected successfully")
-//     socket.write('Hello there client');
+    console.log("Connected successfully")
+    socket.write('Hello there client');
 
-//     socket.on('data', (data) => {
-//         console.log("Message from client", data)
-//     })
-//     const res = createWriteStream('myresult.txt');
-//     socket.pipe(res);
+    socket.on('data', (data) => {
+        console.log("Message from client", data)
+    })
+    const res = createWriteStream('myresult.txt');
+    socket.pipe(res);
 
+    socket.on('close', () => {
+        console.log("Connection closed on client end")
+    })
     
+})
 
-//     socket.on('close', () => {
-//         console.log("Connection closed on client end")
-//     })
-
+netServer.listen(4001, () => {
+    console.log('Server listening at 4000');
     
-// })
-
-// netServer.listen(4000, () => {
-//     console.log(`NetServer listens at port ${4000}`);
-// })
+})
 
 
+// }
 // console.log(process.env.NODE_ENV)
 
 // process.stdout.print("NODE_ENV=development --experimental-require-module --watch index.js")

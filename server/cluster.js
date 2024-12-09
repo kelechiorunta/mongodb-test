@@ -2,69 +2,44 @@ import os from 'os';
 import cluster from 'cluster';
 import net from 'net';
 import { createWriteStream } from 'fs'
+import { fileURLToPath } from 'url';
+import path from 'path';
+import http from 'http';
 
 const numCPUs = os.cpus().length;
-const NET_SERVER_PORT = 4000; // Dedicated port for net server
-const EXPRESS_SERVER_PORT = 3500; // Port for Express server (if any)
+const PORT = 6000;
 
-// Port for the TCP server
-const PORT = 7000;
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 if (cluster.isPrimary) {
     console.log(`Primary process ${process.pid} is running`);
 
-    // Fork workers
-    for (let i = 0; i < numCPUs; i++) {
-        cluster.fork();
-    }
-
-    // Create a TCP server in the primary process (to get the handle)
-    const server = net.createServer();
-    server.listen(PORT, () => {
-        console.log(`Primary process listening on port ${PORT}`);
+    // Setup primary to run db.js for workers
+    cluster.setupPrimary({
+        exec: path.resolve(__dirname, 'index.js'),
     });
 
-    // Get the low-level server handle
-    const serverHandle = server._handle;
+    // Fork workers
+    for (let i = 0; i < numCPUs; i++) {
+        const worker = cluster.fork({
+            ...process.env, // Ensure existing env vars are passed
+            JWT_SECRET: process.env.JWT_SECRET || 'fallbacksecret', // Explicitly include JWT_SECRET
+        });
 
-    // Pass the handle to each worker
-    for (const id in cluster.workers) {
-        cluster.workers[id].send({ type: 'serverHandle', serverHandle });
+        // Send initial message to the worker
+        worker.send(`Worker ${worker.process.pid}, initialize your setup`);
     }
 
-    // Handle messages from workers
+    // Listen for messages from workers
     for (const id in cluster.workers) {
         cluster.workers[id].on('message', (msg) => {
             console.log(`Message from Worker ${id}: ${msg}`);
         });
     }
 
-} else if (cluster.isWorker) {
-    console.log(`Worker ${process.pid} started`);
-
-    // Listen for messages from the primary process
-    process.on('message', (message) => {
-        if (message.type === 'serverHandle' && message.serverHandle) {
-            // Create a TCP server in the worker process
-            const workerServer = net.createServer((socket) => {
-                console.log(`Worker ${process.pid} handling connection`);
-
-                // Handle socket data
-                socket.on('data', (data) => {
-                    console.log(`Worker ${process.pid} received: ${data}`);
-                    socket.write(`Response from Worker ${process.pid}: Received "${data}"`);
-                });
-
-                socket.on('end', () => {
-                    console.log(`Connection closed by client (Worker ${process.pid})`);
-                });
-            });
-
-            // Listen on the server handle passed by the primary
-            workerServer.listen(message.serverHandle, () => {
-                console.log(`Worker ${process.pid} is listening for connections`);
-            });
-        }
+    cluster.on('exit', (worker, code, signal) => {
+        console.log(`Worker ${worker.process.pid} exited with code ${code} (signal: ${signal}). Restarting...`);
+        cluster.fork();
     });
 }
 

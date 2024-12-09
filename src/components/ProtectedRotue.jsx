@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Navigate, Outlet, useLocation } from 'react-router-dom'; // Outlet is used to render the nested route elements
 import { motion } from 'framer-motion';
 import axios from 'axios';
@@ -11,7 +11,6 @@ const ProtectedRoute = () => {
 
     useEffect(() => {
         const verifyToken = async () => {
-            // console.log(`${process.env.REACT_APP_BASE_URL}/auth/verify-token`)
             try{
                 const res = await axios.get(`${process.env.REACT_APP_BASE_URL}/auth/verify-token`, {withCredentials: true}) // Call the token check function
                 console.log(res?.data?.isValid)
@@ -20,25 +19,19 @@ const ProtectedRoute = () => {
         }
         catch(err){
                 console.error(err.message);
-                localStorage.clear();
-                
+                localStorage.clear();        
         }
         finally{
             setLoading(false)
         }
             }
-            
-
         console.log(isAuthenticated)
         verifyToken();
     }, [loading]);
 
-
-
     if (loading) {
         return <div>Loading...</div>; // Show loading indicator while checking
     }
-
     // If authenticated, allow access to the component, otherwise redirect to login
     return isAuthenticated ?
      <motion.div

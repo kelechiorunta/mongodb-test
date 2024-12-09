@@ -2,7 +2,7 @@ import express from 'express';
 import User from '../models/User.js';
 import Video from '../models/Videos.js';
 // import upload from '../upload.js';
-import { gfs } from '../db.js'; // Import GridFS configuration
+// import { gfs } from '../db.js'; // Import GridFS configuration
 import { GridFSBucket, ObjectId } from 'mongodb';
 // import { gridfsBucket } from '../db.js';
 import mongoose from 'mongoose';

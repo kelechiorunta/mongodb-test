@@ -2,7 +2,7 @@ import Video from "../models/Videos.js";
 import User from "../models/User.js";
 import jwt from 'jsonwebtoken';
 import mongoose from "mongoose";
-import { connectDB } from "../db.js";
+// import { connectDB } from "../db.js";
 
 //Verify Token for middleware and every request/response cycle
 const verifyToken = (req, res) => {

@@ -1,5 +1,5 @@
 import jwt from 'jsonwebtoken'
-import { connectDB } from './db.js';
+// import { connectDB } from './db.js';
 
 const authenticateToken = async(req, res, next) => {
 
@@ -8,8 +8,6 @@ const authenticateToken = async(req, res, next) => {
     }
 
     if (!req.cookies?.kelechi) {
-        // connectDB(process.env.MONGO_URI);
-        // req.user = null
         return res.redirect('/login');
     }
 

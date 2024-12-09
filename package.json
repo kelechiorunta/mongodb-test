@@ -41,6 +41,7 @@
     "profile": "node --prof ./server/index.js",
     "debug_libs": "NODE_DEBUG=stream,fs,util node ./server/index.js",
     "env": "node --env-file=.env ./server/index.js",
+    "cluster-mode": "NODE_ENV=production node --import=module --watch ./server/cluster.js",
     "input-hello-command": "node --input-type=module -e \"console.log((await import('./server/hello.js')).default())\"",
     "print-profiler": "node --prof-process isolate-0x7f995c900000-27503-v8.log > profile.txt"
   },
