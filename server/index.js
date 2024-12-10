@@ -57,7 +57,7 @@ let corsSetup = {
         }
     },
     credentials: true,
-    method: ['GET', 'POST'],
+    method: ['GET', 'POST', 'DELETE'],
     allowedHeaders: ['Content-Type', 'Authorization']
 }
 

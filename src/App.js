@@ -6,6 +6,7 @@ import ViewForm from './components/ViewForm.jsx';
 import Login from './components/Login.jsx';
 import About from './components/About.jsx';
 import Contact from './components/Contact.jsx';
+import Project from './components/Project.jsx';
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
           <Route path='/about' element={<About />} />
           <Route path="/upload" element={<UploadForm/>} /> 
           <Route path="/contact" element={<Contact/>} /> 
+          <Route path="/project/:name/:n" element={<Project/>} /> 
         </Route>
       </Routes> 
     </div>

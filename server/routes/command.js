@@ -544,5 +544,224 @@ sipRouter.post('/createPlaceholder/:email', upload.single('picture'), async (req
     }
   });
 
+  sipRouter.post('/createProperty/:name', upload.single('property'), async (req, res) => {
+    try {
+        const gfs = new GridFSBucket(mongoose.connection.db, { bucketName: 'properties' });
+
+        // Find the user by email
+        const currentUser = await User.findOne({ username: req.params.name });
+        if (!currentUser) {
+            return res.status(400).json({ error: 'No user found with this email' });
+        }
+
+        // Check if the collections already have three entries
+        if (
+            currentUser.propertyPlaceholderCollections.length >= 3 ||
+            currentUser.propertyPictureCollections.length >= 3
+        ) {
+            return res.status(400).json({ error: 'You cannot add more than three property pictures or placeholders.' });
+        }
+
+        const { buffer, originalname, mimetype } = req.file;
+
+        // Save the full image to GridFS
+        const fullImageStream = gfs.openUploadStream(originalname, { contentType: mimetype });
+        const fullImageReadable = new Readable();
+        fullImageReadable.push(buffer);
+        fullImageReadable.push(null);
+        await pipelineAsync(fullImageReadable, fullImageStream);
+
+        // Generate a placeholder image (resize and optimize with sharp)
+        const placeholderBuffer = await sharp(buffer)
+            .resize(100) // Resize to a smaller width for placeholder
+            .toBuffer();
+
+        // Save the placeholder image to GridFS
+        const placeholderStream = gfs.openUploadStream(
+            `${path.basename(originalname, path.extname(originalname))}-placeholder`,
+            { contentType: mimetype }
+        );
+        const placeholderReadable = new Readable();
+        placeholderReadable.push(placeholderBuffer);
+        placeholderReadable.push(null);
+        await pipelineAsync(placeholderReadable, placeholderStream);
+
+        // Add the new IDs to the user's collections
+        currentUser.propertyPictureCollections.push(fullImageStream.id);
+        currentUser.propertyPlaceholderCollections.push(placeholderStream.id);
+        await currentUser.save();
+
+        res.status(201).json({
+            message: 'Upload successful',
+            pictureId: fullImageStream.id,
+            placeholderId: placeholderStream.id,
+        });
+    } catch (error) {
+        console.error('Error uploading property picture and placeholder:', error);
+        res.status(500).json({ message: 'Error processing the image' });
+    }
+});
+
+sipRouter.get('/propertyPlaceholder/:name/:no', async (req, res) => {
+    try {
+        const gfs = new GridFSBucket(mongoose.connection.db, { bucketName: 'properties' });
+
+        // Find the user by email
+        const currentUser = await User.findOne({ username: req.params.name });
+        if (!currentUser) {
+            return res.status(400).json({ error: 'No user found with this email' });
+        }
+
+        const index = parseInt(req.params.no, 10);
+
+        // Validate index
+        if (isNaN(index) || index < 0 || index >= currentUser.propertyPlaceholderCollections.length) {
+            return res.status(400).json({ error: 'Invalid index for property placeholder.' });
+        }
+
+        // Retrieve placeholder ID and stream it
+        const placeholderId = currentUser.propertyPlaceholderCollections[index];
+        const file = await gfs.find({ _id: placeholderId }).next();
+        if (!file) {
+            return res.status(404).json({ error: 'Property placeholder not found.' });
+        }
+
+        res.set({
+            'Content-Type': file.contentType || 'image/jpeg',
+            'Content-Length': file.length,
+        });
+
+        const readStream = gfs.openDownloadStream(placeholderId);
+        readStream.pipe(res);
+    } catch (error) {
+        console.error('Error streaming property placeholder:', error);
+        res.status(500).json({ message: 'Error streaming placeholder.' });
+    }
+});
+
+sipRouter.get('/propertyPicture/:name/:no', async (req, res) => {
+    try {
+        const gfs = new GridFSBucket(mongoose.connection.db, { bucketName: 'properties' });
+
+        // Find the user by email
+        const currentUser = await User.findOne({ username: req.params.name});
+        if (!currentUser) {
+            return res.status(400).json({ error: 'No user found with this email' });
+        }
+
+        const index = parseInt(req.params.no, 10);
+
+        // Validate index
+        if (isNaN(index) || index < 0 || index >= currentUser.propertyPictureCollections.length) {
+            return res.status(400).json({ error: 'Invalid index for property picture.' });
+        }
+
+        // Retrieve picture ID and stream it
+        const pictureId = currentUser.propertyPictureCollections[index];
+        const file = await gfs.find({ _id: pictureId }).next();
+        if (!file) {
+            return res.status(404).json({ error: 'Property picture not found.' });
+        }
+
+        res.set({
+            'Content-Type': file.contentType || 'image/jpeg',
+            'Content-Length': file.length,
+        });
+
+        const readStream = gfs.openDownloadStream(pictureId);
+        readStream.pipe(res);
+    } catch (error) {
+        console.error('Error streaming property picture:', error);
+        res.status(500).json({ message: 'Error streaming picture.' });
+    }
+});
+
+sipRouter.delete('/deleteProperty/:name/:n', async (req, res) => {
+    try {
+        const gfs = new GridFSBucket(mongoose.connection.db, { bucketName: 'properties' });
+        const { name, n } = req.params;
+
+        // Find the user by username
+        const currentUser = await User.findOne({ username: name });
+        if (!currentUser) {
+            return res.status(400).json({ error: 'No user found with this username' });
+        }
+
+        const index = parseInt(n, 10);
+
+        // Validate index
+        if (
+            isNaN(index) ||
+            index < 0 ||
+            index >= currentUser.propertyPlaceholderCollections.length ||
+            index >= currentUser.propertyPictureCollections.length
+        ) {
+            return res.status(400).json({ error: 'Invalid index specified.' });
+        }
+
+        // Get the IDs to be deleted
+        const placeholderId = currentUser.propertyPlaceholderCollections[index];
+        const pictureId = currentUser.propertyPictureCollections[index];
+
+        // Delete files from GridFS
+        if (placeholderId) {
+            try {
+                await gfs.delete(new mongoose.Types.ObjectId(placeholderId));
+            } catch (error) {
+                console.error(`Failed to delete placeholderId: ${placeholderId}`, error);
+            }
+        }
+        if (pictureId) {
+            try {
+                await gfs.delete(new mongoose.Types.ObjectId(pictureId));
+            } catch (error) {
+                console.error(`Failed to delete pictureId: ${pictureId}`, error);
+            }
+        }
+
+        // Remove the IDs from the user's collections
+        currentUser.propertyPlaceholderCollections.splice(index, 1);
+        currentUser.propertyPictureCollections.splice(index, 1);
+
+        // Save the updated user document
+        await currentUser.save();
+
+        res.status(200).json({
+            message: 'Property placeholder and picture deleted successfully.',
+        });
+    } catch (error) {
+        console.error('Error deleting property placeholder and picture:', error);
+        res.status(500).json({ message: 'Error processing the request' });
+    }
+});
+
+sipRouter.post('/createPost/:name', async(req, res) => {
+    const { content } = req.body;
+    const name = req.params.name;
+    try{
+        if (!content) {
+          return res.status(400).json({error: "Invalid Post"})
+        }
+
+        const bufferToStream = (bufferString) => {
+            const readable = new Readable();
+            readable.push(bufferString);
+            readable.push(null);
+            return readable;
+        }
+
+        const fullreadableStream = bufferToStream(content);
+
+        const fullwriteableStream = fs.createWriteStream('post.txt');
+
+        await pipelineAsync(fullreadableStream, fullwriteableStream);
+        res.status(201).json({
+          message: 'Post Upload Successful',  
+        });
+    }catch(err){
+        console.log("Unable to upload Post");
+        return res.status(500).json({error: "Server failure."})
+    }
+})
   
 export default sipRouter;

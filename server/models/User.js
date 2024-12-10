@@ -13,6 +13,8 @@ const userSchema = new mongoose.Schema({
     profilePicId: { type: mongoose.Schema.Types.ObjectId, ref: 'pictures' },
     profilePlaceholderId: { type: mongoose.Schema.Types.ObjectId, ref: 'pictures' },
     fileId: { type: mongoose.Schema.Types.ObjectId, ref: 'file' }, // Reference to GridFS file
+    propertyPlaceholderCollections: [ {type: mongoose.Schema.Types.ObjectId, ref: 'properties' }],
+    propertyPictureCollections: [ {type: mongoose.Schema.Types.ObjectId, ref: 'properties' }],
     otp: {
         type: String,
         default: 'otp'
@@ -26,10 +28,18 @@ const userSchema = new mongoose.Schema({
     resetPasswordExpires: {type: Date },
 });
 
-// Pre-save hook to hash the password before saving the user
+// Pre-save hook to enforce picCollections limit and hash the password
 userSchema.pre('save', async function (next) {
-    if (!this.isModified('password')) return next();
-    this.password = await bcrypt.hash(this.password, 10);
+    // Enforce the maximum number of images in picCollections
+    if ((this.propertyPlaceholderCollections.length > 3) || (this.propertyPictureCollections.length > 3)) {
+        return next(new Error("You cannot save more than three images in picCollections."));
+    }
+
+    // Hash the password if it is modified
+    if (this.isModified('password')) {
+        this.password = await bcrypt.hash(this.password, 10);
+    }
+
     next();
 });
 

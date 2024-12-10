@@ -43,7 +43,8 @@
     "env": "node --env-file=.env ./server/index.js",
     "cluster-mode": "NODE_ENV=production node --import=module --watch ./server/cluster.js",
     "input-hello-command": "node --input-type=module -e \"console.log((await import('./server/hello.js')).default())\"",
-    "print-profiler": "node --prof-process isolate-0x7f995c900000-27503-v8.log > profile.txt"
+    "print-profiler": "node --prof-process isolate-0x7f995c900000-27503-v8.log > profile.txt",
+    "time-request": "time curl --get http://localhost:3500/"
   },
   "eslintConfig": {
     "extends": [

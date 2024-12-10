@@ -52,7 +52,7 @@ const Profile = () => {
   };
 
   return (
-    <div className="flex flex-col items-center p-6 bg-gray-100 min-h-screen">
+    <div className="flex flex-col items-center p-6 bg-gray-100">
       <div className="bg-white shadow-md rounded-lg overflow-hidden max-w-sm w-full">
         <h1>{message}</h1>
         <div className="relative">
